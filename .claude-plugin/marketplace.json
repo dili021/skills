@@ -1,0 +1,17 @@
+{
+  "name": "dili",
+  "owner": {
+    "name": "Stefan Dili",
+    "url": "https://github.com/dili021"
+  },
+  "description": "Stefan's agent skills — a maintained fork of Matt Pocock's engineering skills plus personal skills, as an installable Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "dili-skills",
+      "source": "./",
+      "description": "Engineering and productivity skills: grilling, spec/ticket flows, TDD, code review, domain modelling, plus personal skills.",
+      "category": "engineering",
+      "keywords": ["engineering", "skills", "tdd", "code-review", "grilling"]
+    }
+  ]
+}
