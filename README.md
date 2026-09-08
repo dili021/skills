@@ -58,10 +58,15 @@ by path. `sync-manifest.mjs` fails loudly on a collision.
 
 ```bash
 ./scripts/new-skill.sh my-skill        # -> skills/personal/my-skill/SKILL.md
-git add -A && git commit -m "Add my-skill" && git push
+./scripts/release.sh minor             # bump the version, commit, push
 ```
 
 Then `/plugin update` wherever you use it.
+
+**Bump the version on every change you want distributed.** Claude Code caches an installed
+plugin under its version number, so `plugin update` on an unchanged version reports
+"already at the latest version" and keeps serving the old snapshot. `release.sh` exists so
+this cannot be forgotten.
 
 ## Change a forked skill
 
