@@ -118,7 +118,7 @@
     from, to         string   who is asking, who is answering
     usage            string   how the answers will be used
     context          string   one paragraph orienting the recipient
-    howToAnswer      string   deadline, rough effort, partial answers welcome
+    howToAnswer      string   deadline, partial answers welcome (no effort estimate)
     sections         array    [{ heading: string, questions: [{ text: string, why?: string }] }]
     closing          string   the catch-all question at the end
 -->
@@ -130,7 +130,7 @@
   "to": "Marko (product owner)",
   "usage": "Your answers go straight into the capacity plan we present on Friday.",
   "context": "The platform team owns hosting for the new service. We know the architecture but not the expected usage, launch timing, or which customers come first. You hold that.",
-  "howToAnswer": "Please answer by Thursday noon. About 20 minutes. Partial answers and \"I don't know\" are useful. Flag anything you are unsure of rather than skipping it.",
+  "howToAnswer": "Please answer by Thursday noon. Partial answers and \"I don't know\" are useful. Flag anything you are unsure of rather than skipping it.",
   "sections": [
     {
       "heading": "Load",
