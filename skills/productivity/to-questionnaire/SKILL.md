@@ -22,7 +22,7 @@ Frame the document as a **discovery questionnaire**: the user lacks context, the
 
 - `title`, `purpose`, `from`, `to`, `usage` make the header. Purpose states why the questionnaire exists and the decision riding on it. Usage says where the answers go.
 - `context` is one paragraph orienting a recipient who wasn't in the user's head. Enough to answer well, not a page.
-- `howToAnswer` carries the deadline and rough effort, and says that partial answers and "I don't know" are useful, so the recipient flags what they're unsure of instead of skipping it.
+- `howToAnswer` carries the deadline, and says that partial answers and "I don't know" are useful, so the recipient flags what they're unsure of instead of skipping it. Never state an estimated effort or duration: it is a guess about the recipient's time and it anchors how much they write.
 - `sections` group the questions under one heading per theme once there are more than a handful; a short questionnaire is one section. Order sections and questions most-important-first, since async means you may only get one pass.
 - Every question's `text` is one idea, never compound. Add `why` only where the question could be misread or invite a throwaway answer, as one line the recipient reads as "Why this matters: ...".
 - `closing` is the catch-all at the end: anything we didn't ask that we should know?
