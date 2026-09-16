@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Questionnaire</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --text: #1c1c1a;
+    --muted: #6b6b66;
+    --line: #dededa;
+    --accent: #2f5d8a;
+    --accent-text: #ffffff;
+    --field: #fbfbfa;
+    --ok: #2e7d4f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614;
+      --card: #1f1f1c;
+      --text: #ecebe6;
+      --muted: #9a9a92;
+      --line: #33332f;
+      --accent: #7fb0e0;
+      --accent-text: #10141a;
+      --field: #191917;
+      --ok: #6fcf97;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614;
+    --card: #1f1f1c;
+    --text: #ecebe6;
+    --muted: #9a9a92;
+    --line: #33332f;
+    --accent: #7fb0e0;
+    --accent-text: #10141a;
+    --field: #191917;
+    --ok: #6fcf97;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 96px; }
+  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 12px; }
+  h2 { font-size: 1.2rem; margin: 40px 0 12px; padding-top: 24px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 0 0 6px; font-weight: 600; }
+  p { margin: 0 0 12px; }
+  .meta { color: var(--muted); font-size: 0.95rem; margin-bottom: 20px; }
+  .meta span + span::before { content: " · "; }
+  .box {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .box h2 { margin: 0 0 8px; padding: 0; border: 0; font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .q { margin: 0 0 22px; }
+  .why { color: var(--muted); font-size: 0.92rem; font-style: italic; margin: 0 0 8px; }
+  textarea {
+    width: 100%;
+    min-height: 88px;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--field);
+    color: var(--text);
+    font: inherit;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    padding: 12px 0;
+    margin-top: 32px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: 0;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .status { color: var(--ok); font-size: 0.95rem; }
+  .status.warn { color: var(--muted); }
+  .fallback { display: none; margin-top: 12px; }
+  .fallback.show { display: block; }
+  .fallback textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; }
+  .saved { color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+
+<!--
+  The agent fills ONLY this JSON block. Everything else in the file stays as is.
+  Shape:
+    title            string   short document title
+    purpose          string   why this exists and the decision riding on it
+    from, to         string   who is asking, who is answering
+    usage            string   how the answers will be used
+    context          string   one paragraph orienting the recipient
+    howToAnswer      string   deadline, rough effort, partial answers welcome
+    sections         array    [{ heading: string, questions: [{ text: string, why?: string }] }]
+    closing          string   the catch-all question at the end
+-->
+<script type="application/json" id="questionnaire">
+{
+  "title": "Launch readiness questionnaire",
+  "purpose": "We are sizing the infrastructure for launch and cannot decide between two plans without your numbers.",
+  "from": "Ana (platform team)",
+  "to": "Marko (product owner)",
+  "usage": "Your answers go straight into the capacity plan we present on Friday.",
+  "context": "The platform team owns hosting for the new service. We know the architecture but not the expected usage, launch timing, or which customers come first. You hold that.",
+  "howToAnswer": "Please answer by Thursday noon. About 20 minutes. Partial answers and \"I don't know\" are useful. Flag anything you are unsure of rather than skipping it.",
+  "sections": [
+    {
+      "heading": "Load",
+      "questions": [
+        { "text": "What load is the system expected to handle at launch?", "why": "It decides whether we provision for burst traffic now or defer it." },
+        { "text": "Which customer group goes live first?" }
+      ]
+    }
+  ],
+  "closing": "Is there anything we did not ask that we should know?"
+}
+</script>
+
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById('questionnaire').textContent);
+  var app = document.getElementById('app');
+  var storageKey = 'to-questionnaire:' + slug(data.title);
+  var saved = load();
+  var fields = [];
+
+  document.title = data.title;
+
+  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'text') n.textContent = attrs[k];
+      else if (k === 'class') n.className = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+  function load() {
+    try { return JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (e) { return {}; }
+  }
+  function save() {
+    var out = {};
+    fields.forEach(function (f) { if (f.input.value) out[f.id] = f.input.value; });
+    try { localStorage.setItem(storageKey, JSON.stringify(out)); } catch (e) {}
+    savedNote.textContent = 'Saved in this browser ' + new Date().toLocaleTimeString();
+  }
+  function question(id, text, why) {
+    var input = el('textarea', { id: id, placeholder: 'Your answer' });
+    input.value = saved[id] || '';
+    input.addEventListener('input', save);
+    fields.push({ id: id, text: text, input: input });
+    return el('div', { class: 'q' }, [
+      el('h3', { text: text }),
+      why ? el('p', { class: 'why', text: 'Why this matters: ' + why }) : null,
+      input
+    ]);
+  }
+
+  var savedNote = el('span', { class: 'saved' });
+  var status = el('span', { class: 'status' });
+  var fallback = el('div', { class: 'fallback' }, [
+    el('p', { class: 'status warn', text: 'Clipboard access was blocked. Select the text below and copy it.' }),
+    el('textarea', { readonly: 'readonly' })
+  ]);
+
+  var meta = [];
+  if (data.from) meta.push(el('span', { text: 'From: ' + data.from }));
+  if (data.to) meta.push(el('span', { text: 'To: ' + data.to }));
+
+  app.appendChild(el('h1', { text: data.title }));
+  if (data.purpose) app.appendChild(el('p', { text: data.purpose }));
+  if (meta.length) app.appendChild(el('p', { class: 'meta' }, meta));
+  if (data.usage) app.appendChild(el('p', { class: 'meta', text: 'How your answers will be used: ' + data.usage }));
+
+  if (data.context) app.appendChild(el('section', { class: 'box' }, [
+    el('h2', { text: 'Context' }), el('p', { text: data.context })
+  ]));
+  if (data.howToAnswer) app.appendChild(el('section', { class: 'box' }, [
+    el('h2', { text: 'How to answer' }), el('p', { text: data.howToAnswer })
+  ]));
+
+  var sections = [];
+  (data.sections || []).forEach(function (s, si) {
+    var qs = [];
+    var sec = el('section', {}, [el('h2', { text: s.heading })]);
+    (s.questions || []).forEach(function (q, qi) {
+      var id = 'q-' + (si + 1) + '-' + (qi + 1);
+      sec.appendChild(question(id, q.text, q.why));
+      qs.push(id);
+    });
+    sections.push({ heading: s.heading, ids: qs });
+    app.appendChild(sec);
+  });
+  if (data.closing) {
+    var sec = el('section', {}, [el('h2', { text: 'Anything else?' })]);
+    sec.appendChild(question('q-closing', data.closing));
+    sections.push({ heading: 'Anything else?', ids: ['q-closing'] });
+    app.appendChild(sec);
+  }
+
+  function byId(id) { for (var i = 0; i < fields.length; i++) if (fields[i].id === id) return fields[i]; }
+  function answersMarkdown() {
+    var lines = ['# ' + data.title + ' (answers)', ''];
+    if (data.from) lines.push('From: ' + data.from);
+    if (data.to) lines.push('Answered by: ' + data.to);
+    lines.push('Date: ' + new Date().toISOString().slice(0, 10), '');
+    sections.forEach(function (s) {
+      lines.push('## ' + s.heading, '');
+      s.ids.forEach(function (id) {
+        var f = byId(id);
+        var a = f.input.value.trim();
+        lines.push('### ' + f.text, '', a || '_(no answer)_', '');
+      });
+    });
+    return lines.join('\n');
+  }
+  function copy(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var t = el('textarea');
+      t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(t);
+      ok ? resolve() : reject(new Error('copy blocked'));
+    });
+  }
+
+  var copyBtn = el('button', { type: 'button', text: 'Copy answers' });
+  copyBtn.addEventListener('click', function () {
+    var md = answersMarkdown();
+    var answered = fields.filter(function (f) { return f.input.value.trim(); }).length;
+    copy(md).then(function () {
+      fallback.classList.remove('show');
+      status.className = 'status';
+      status.textContent = 'Copied ' + answered + ' of ' + fields.length + ' answers as Markdown. Paste it into a reply.';
+    }).catch(function () {
+      fallback.querySelector('textarea').value = md;
+      fallback.classList.add('show');
+      status.textContent = '';
+    });
+  });
+
+  var clearBtn = el('button', { type: 'button', class: 'secondary', text: 'Clear answers' });
+  clearBtn.addEventListener('click', function () {
+    if (!confirm('Clear every answer on this page?')) return;
+    fields.forEach(function (f) { f.input.value = ''; });
+    try { localStorage.removeItem(storageKey); } catch (e) {}
+    savedNote.textContent = '';
+    status.textContent = '';
+  });
+
+  app.appendChild(el('div', { class: 'actions' }, [copyBtn, clearBtn, status, savedNote]));
+  app.appendChild(fallback);
+  if (Object.keys(saved).length) savedNote.textContent = 'Restored answers saved earlier in this browser.';
+})();
+</script>
+</body>
+</html>
