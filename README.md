@@ -2,9 +2,9 @@
 
 My agent skills, in one repo, installable anywhere as a Claude Code plugin.
 
-A maintained fork of [mattpocock/skills](https://github.com/mattpocock/skills) and of the
-`unslop` skill from [poteto/pstack](https://github.com/cursor/plugins/tree/main/pstack),
-both MIT, plus my own. Forking rather than installing means I can edit any skill; the tradeoff is
+A maintained fork of [mattpocock/skills](https://github.com/mattpocock/skills), of the
+`unslop` skill from [poteto/pstack](https://github.com/cursor/plugins/tree/main/pstack) and of
+[jasonku09/grill-with-ui](https://github.com/jasonku09/grill-with-ui), all MIT, plus my own. Forking rather than installing means I can edit any skill; the tradeoff is
 that upstream changes have to be adopted deliberately, which `scripts/sync-upstream.sh`
 exists to make cheap.
 
@@ -36,7 +36,8 @@ Symlinks, not copies — a `git pull` updates them in place. `--prune` clears
   marketplace.json   this repo as a marketplace (one plugin: dili-skills)
   plugin.json        the plugin — its "skills" array is generated, never hand-edited
 skills/
-  engineering/       forked from mattpocock
+  engineering/       forked from mattpocock; grill-with-ui from jasonku09 (runtime files only,
+                     its design/, docs/ and page e2e test are not vendored)
   productivity/      forked from mattpocock
   writing/           unslop, forked from pstack
   personal/          mine
@@ -110,6 +111,7 @@ means "reviewed up to here", so the next run shows only what's new.
 ## Attribution
 
 Most vendored skills are MIT © Matt Pocock, see `LICENSE.mattpocock`. `unslop` is MIT ©
-Lauren Tan (poteto), see `LICENSE.pstack`. My changes and my own skills are MIT © Stefan
+Lauren Tan (poteto), see `LICENSE.pstack`. `grill-with-ui` is MIT © Jason Ku, see
+`LICENSE.jasonku09`; it needs Node 20+ at run time. My changes and my own skills are MIT © Stefan
 Dili. `find-skills` (vercel-labs) is not vendored here, it stays installed through the
 `skills` CLI.

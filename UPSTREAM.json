@@ -24,6 +24,17 @@
       "skillRoots": [
         "pstack/skills"
       ]
+    },
+    {
+      "name": "jasonku09",
+      "url": "https://github.com/jasonku09/grill-with-ui.git",
+      "branch": "main",
+      "license": "MIT",
+      "pinned": "daafa1e2111d7c6efc85a11b00cbbdae42a72c9d",
+      "pinnedDate": "2026-09-21T00:00:00.000Z",
+      "skillRoots": [
+        "."
+      ]
     }
   ],
   "provenance": {
@@ -130,6 +141,10 @@
     "unslop": {
       "upstream": "pstack",
       "path": "pstack/skills/unslop"
+    },
+    "grill-with-ui": {
+      "upstream": "jasonku09",
+      "path": "."
     }
   }
 }
