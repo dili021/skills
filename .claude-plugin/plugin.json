@@ -1,6 +1,6 @@
 {
   "name": "dili-skills",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Stefan's agent skills: a maintained fork of Matt Pocock's engineering skills (grilling, spec/ticket flows, TDD, code review, domain modelling) plus personal skills.",
   "author": {
     "name": "Stefan Dili",
@@ -23,6 +23,7 @@
     "./skills/engineering/diagnosing-bugs",
     "./skills/engineering/domain-modeling",
     "./skills/engineering/grill-with-docs",
+    "./skills/engineering/grill-with-ui",
     "./skills/engineering/implement",
     "./skills/engineering/improve-codebase-architecture",
     "./skills/engineering/lanes",

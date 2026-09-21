@@ -102,6 +102,7 @@ case "${1:-status}" in
     git -C "$cache" checkout --quiet "origin/$(field "$i" branch)"
     rm -rf "$mine"
     cp -r "$cache/$up" "$mine"
+    rm -rf "$mine/.git"   # an upstream whose root is the skill (path ".") carries its .git along
     echo "Adopted $(field "$i" name)/$skill into ${mine#"$ROOT"/}"
     echo "Review with: git diff -- ${mine#"$ROOT"/}   (local edits, if any, are gone)"
     ;;
