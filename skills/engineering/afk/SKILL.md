@@ -48,11 +48,11 @@ Take a task from its brief to **merge-ready** without the user: built, proven, r
 
 13. **Write the handoff.** Call the Skill tool with `pr` for the body, and put an **Attention** section first: every `assumed` criterion and decision, every INCONCLUSIVE criterion, every accepted trade-off, every stop-list item still waiting.
     - **Pull request**: open it ready for review on PASS or PASS+NOTES. Otherwise open it as a draft that names what is missing.
-    - **Local branch**: write the body to `.afk/<branch>/HANDOFF.md` and push nothing.
+    - **Local branch**: write the body to `.afk/<branch>/HANDOFF.md`. Push the work branch only when `docs/agents/handoff.md` says so, and never the base branch.
 
 14. **Bring it to green on the current base.**
     - **Pull request**: watch the checks with the project's forge CLI. Batch every known fix into one push. Fix real review-bot findings and dismiss noise with the reason stated on the thread.
-    - **Local branch**: no CI will run, so this run's own checks are the last gate. Merge the base branch's tip into the work branch, then run `check` and the full test suite there. Leave the base branch as it is.
+    - **Local branch**: merge the base branch's tip into the work branch, then run `check` and the full test suite there. These are the last gate. When the branch was pushed and the forge ran checks on it, read those too. Leave the base branch as it is.
 
     Product code committed after the verdict needs a new verdict.
 

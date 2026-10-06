@@ -1,7 +1,13 @@
 #!/usr/bin/env node
-// floor-guard.mjs — diff-scoped enforcement of the CONSTRAINTS.md floor.
+// Diff-scoped enforcement of the CONSTRAINTS.md floor.
 // Usage: node floor-guard.mjs [--base <ref>] [--warn-config]   (default base: origin/main)
+// A floor-guard.config.json beside this script names the stacks this repo has and adds its own
+// patterns: { "stacks": ["dotnet", "ts", "python"], "extra": { "suppress": ["regex"], ... } }.
+// With no config file every stack is on.
 import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const base = (() => {
   const i = process.argv.indexOf('--base');
@@ -63,17 +69,87 @@ for (const line of diff.split('\n')) {
 
 const findings = [];
 const flag = (rule, f, text) => findings.push({ rule, file: f, text: text.trim().slice(0, 120) });
-const isTest = (f) => /\.(test|spec)\.|_test\.|test_|Tests?\.cs$|(^|\/)tests?\//i.test(f);
 const isConstraints = (f) => /CONSTRAINTS\.md$/.test(f);
 
-// 1. Silenced checker — extend this list for your ecosystem.
-const SUPPRESSIONS = /@ts-ignore|@ts-nocheck|eslint-disable|biome-ignore|# *noqa|# *type: *ignore|istanbul ignore|nosemgrep|gitleaks:allow|Stryker disable|#pragma warning disable|#nullable disable|SuppressMessage\(|ReSharper disable/;
-// 4. Unfinished work.
-const STUBS = /throw new (Error|NotImplemented).*[Nn]ot implemented|catch\s*\(\w*\)\s*\{\s*\}|catch\s*\{\s*\}|\bTODO\b|\bpass\s*# *stub|throw new NotImplementedException|raise NotImplementedError/;
-// 2. A test made easier (added skips).
-const SKIPS = /\.(skip|todo)\b|\bxit\(|\bxdescribe\(|@pytest\.mark\.(skip|xfail)|@unittest\.skip|t\.Skip\(|\[(Fact|Theory)\(Skip|\[Ignore\b|Assert\.(Ignore|Inconclusive)\(/;
+// Patterns per stack. Each stack names how a checker gets silenced, what unfinished work looks
+// like, how a test gets skipped, which files are tests, what an assertion looks like, and which
+// files configure its checkers. `lines` covers files that mix dependencies with checker settings:
+// those are flagged by line, so a version bump stays quiet.
+const STACKS = {
+  ts: {
+    suppress: /@ts-ignore|@ts-nocheck|eslint-disable|biome-ignore|istanbul ignore|Stryker disable/,
+    stub: /throw new (Error|NotImplemented).*[Nn]ot implemented|catch\s*\(\w*\)\s*\{\s*\}|catch\s*\{\s*\}/,
+    skip: /\.(skip|todo|only)\b|\bxit\(|\bxdescribe\(|\bfit\(|\bfdescribe\(/,
+    test: /\.(test|spec)\.[cm]?[jt]sx?$/,
+    assert: /\b(expect|assert|should)\b/,
+    config: /(^|\/)(eslint\.config\.[cm]?[jt]s|\.eslintrc(\.[a-z]+)?|\.eslintignore|tsconfig[^/]*\.json|biome\.jsonc?|(vitest|jest|playwright|cypress)\.config\.[cm]?[jt]s|karma\.conf\.[cm]?js)$/,
+    lines: [
+      [/(^|\/)package\.json$/, /^\s*"(check|lint|test|typecheck|type-check)[^"]*"\s*:/, 'check scripts'],
+      [/(^|\/)angular\.json$/, /"(maximumWarning|maximumError|codeCoverage|lintFilePatterns)"\s*:/, 'budgets and lint'],
+    ],
+  },
+  dotnet: {
+    suppress: /#pragma warning disable|#nullable disable|SuppressMessage\(|ReSharper disable/,
+    stub: /throw new NotImplementedException|catch\s*(\([^)]*\))?\s*\{\s*\}/,
+    skip: /\[(Fact|Theory)\(Skip|\[Ignore\b|Assert\.(Ignore|Inconclusive)\(/,
+    test: /Tests?\.cs$|(^|\/)[^/]*\.Tests?\/.*\.cs$/,
+    assert: /\bAssert\b|\.Should\(/,
+    config: /(^|\/)(\.editorconfig|\.globalconfig|Directory\.Build\.(props|targets)|stylecop\.json|[^/]*\.ruleset)$/,
+    lines: [
+      [/\.(cs|fs|vb)proj$/, /<(NoWarn|Nullable|TreatWarningsAsErrors|WarningsAsErrors|WarningsNotAsErrors|WarningLevel|AnalysisLevel|AnalysisMode|EnforceCodeStyleInBuild)>/, 'warning settings'],
+    ],
+  },
+  python: {
+    suppress: /# *noqa|# *type: *ignore/,
+    stub: /\bpass\s*# *stub|raise NotImplementedError/,
+    skip: /@pytest\.mark\.(skip|xfail)|@unittest\.skip/,
+    test: /(^|\/)(test_[^/]*|[^/]*_test)\.py$|(^|\/)tests?\/.*\.py$/,
+    assert: /\bassert\b/,
+    config: /(^|\/)(\.?ruff\.toml|mypy\.ini|pyrightconfig\.json|pytest\.ini|tox\.ini|setup\.cfg|\.flake8)$/,
+    lines: [
+      [/(^|\/)pyproject\.toml$/, /^\s*(select|ignore|extend-select|extend-ignore|per-file-ignores|exclude|strict|disallow_\w+|warn_\w+|ignore_missing_imports|fail_under|addopts)\s*=/, 'checker settings'],
+    ],
+  },
+  go: {
+    skip: /t\.Skip\(/,
+    test: /_test\.go$/,
+    assert: /\bt\.(Error|Fatal)|\b(assert|require)\./,
+  },
+};
+// On for every repo: scanner suppressions, TODO, CI, hooks, and the guard's own files.
+const ANY = {
+  suppress: /nosemgrep|gitleaks:allow/,
+  stub: /\bTODO\b/,
+  config: /(^|\/)(\.gitlab-ci\.yml|lefthook\.yml|\.pre-commit-config\.yaml|azure-pipelines[^/]*\.ya?ml|floor-guard\.config\.json|floor-guard\.mjs)$|(^|\/)\.github\/workflows\/|(^|\/)\.husky\//,
+};
+
+const configPath = join(dirname(fileURLToPath(import.meta.url)), 'floor-guard.config.json');
+let config = {};
+if (existsSync(configPath)) {
+  try { config = JSON.parse(readFileSync(configPath, 'utf8')); }
+  catch { bail('floor-guard.config.json is not valid JSON'); }
+}
+const stackNames = config.stacks ?? Object.keys(STACKS);
+for (const n of stackNames) if (!STACKS[n]) bail(`unknown stack "${n}" in floor-guard.config.json, known: ${Object.keys(STACKS).join(', ')}`);
+const active = [ANY, ...stackNames.map((n) => STACKS[n])];
+// One regex per kind: every active stack's pattern, plus the repo's own from `extra`.
+const union = (kind) => {
+  const parts = [...active.map((s) => s[kind]?.source), ...(config.extra?.[kind] ?? [])].filter(Boolean);
+  try { return new RegExp(parts.length ? parts.join('|') : '(?!)'); }
+  catch (e) { bail(`bad "${kind}" pattern in floor-guard.config.json: ${e.message}`); }
+};
+const SUPPRESSIONS = union('suppress');
+const STUBS = union('stub');
+const SKIPS = union('skip');
+const TESTS = union('test');
+const ASSERTS = union('assert');
+const isTest = (f) => TESTS.test(f);
+// The guard's own source is full of the patterns it hunts. A change to it is reported once, as a
+// config change, and its lines are left unread.
+const isGuard = (f) => /(^|\/)floor-guard\.(mjs|config\.json)$/.test(f);
 
 for (const { file, text } of added) {
+  if (isGuard(file)) continue;
   if (SUPPRESSIONS.test(text)) flag('silenced-checker', file, text);
   if (STUBS.test(text)) flag('unfinished-work', file, text);
   if (SKIPS.test(text)) flag('test-made-easier', file, text);
@@ -83,7 +159,7 @@ for (const { file, text } of added) {
 // 2b. A test file deleted, or an assertion removed from a test file that still exists.
 for (const f of deleted) if (isTest(f)) flag('test-deleted', f, 'file deleted');
 for (const { file, text } of removed) {
-  if (isTest(file) && !deleted.includes(file) && /\b(expect|assert|Assert|should|Should)\b/.test(text)) {
+  if (isTest(file) && !deleted.includes(file) && ASSERTS.test(text)) {
     flag('assertion-removed', file, text);
   }
 }
@@ -149,17 +225,14 @@ for (const r of removedRules) {
 // package.json. Turning a rule off here lowers the bar without touching CONSTRAINTS.md. The guard
 // cannot read direction in these files, so it reports every change and a person decides.
 // --warn-config prints these without failing, for a pull request where a person has approved them.
-const CHECKER_CONFIG = /(^|\/)(eslint\.config\.[cm]?[jt]s|\.eslintrc(\.[a-z]+)?|\.eslintignore|tsconfig[^/]*\.json|biome\.jsonc?|(vitest|jest|playwright)\.config\.[cm]?[jt]s|\.gitlab-ci\.yml|lefthook\.yml|\.pre-commit-config\.yaml|\.editorconfig|\.globalconfig|Directory\.Build\.(props|targets)|stylecop\.json|[^/]*\.ruleset|\.?ruff\.toml|mypy\.ini|pyrightconfig\.json|pytest\.ini|tox\.ini|setup\.cfg|\.flake8|azure-pipelines[^/]*\.ya?ml)$|(^|\/)\.github\/workflows\/|(^|\/)\.husky\//;
-const SCRIPT_LINE = /^\s*"(check|lint|test|typecheck|type-check)[^"]*"\s*:/;
+const CHECKER_CONFIG = union('config');
+const LINE_RULES = active.flatMap((s) => s.lines ?? []);
 const configChanges = new Set();
-for (const { file } of [...added, ...removed]) if (CHECKER_CONFIG.test(file)) configChanges.add(file);
-// Files that mix dependencies with checker settings are flagged by line, so a version bump stays quiet.
-const PROJECT_LINE = /<(NoWarn|Nullable|TreatWarningsAsErrors|WarningsAsErrors|WarningsNotAsErrors|WarningLevel|AnalysisLevel|AnalysisMode|EnforceCodeStyleInBuild)>/;
-const PYPROJECT_LINE = /^\s*(select|ignore|extend-select|extend-ignore|per-file-ignores|exclude|strict|disallow_\w+|warn_\w+|ignore_missing_imports|fail_under|addopts)\s*=/;
 for (const { file, text } of [...added, ...removed]) {
-  if (/(^|\/)package\.json$/.test(file) && SCRIPT_LINE.test(text)) configChanges.add(file + ' (check scripts)');
-  if (/\.(cs|fs|vb)proj$/.test(file) && PROJECT_LINE.test(text)) configChanges.add(file + ' (warning settings)');
-  if (/(^|\/)pyproject\.toml$/.test(file) && PYPROJECT_LINE.test(text)) configChanges.add(file + ' (checker settings)');
+  if (CHECKER_CONFIG.test(file)) configChanges.add(file);
+  for (const [fileRe, lineRe, label] of LINE_RULES) {
+    if (fileRe.test(file) && lineRe.test(text)) configChanges.add(`${file} (${label})`);
+  }
 }
 if (process.argv.includes('--warn-config')) {
   for (const f of configChanges) console.error(`floor-guard: warning [checker-config-changed] ${f}`);

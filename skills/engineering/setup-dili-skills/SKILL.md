@@ -70,7 +70,7 @@ The defaults are the five canonical roles, each label string equal to its name: 
 
 Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSSARY.md` files) only when exploration found monorepo signals. Then confirm which layout they want.
 
-**Section D: Handoff.** Ask one question: does finished work reach the base branch through a pull request, or through a local merge? Recommend pull request when a forge CLI is signed in and recent history merges that way. Recommend local branch otherwise. Record the answer and the base branch in `docs/agents/handoff.md`, from [handoff.md](./handoff.md).
+**Section D: Handoff.** Ask one question: does finished work reach the base branch through a pull request, or through a local merge? Recommend pull request when a forge CLI is signed in and recent history merges that way. Recommend local branch otherwise. For a local merge, ask one more: may the run push its work branch, so that CI and review bots that react to pushed branches still see it? Recommend yes when the forge runs anything on branch pushes. Record the answers and the base branch in `docs/agents/handoff.md`, from [handoff.md](./handoff.md).
 
 ### 3. Confirm and edit
 
@@ -127,7 +127,7 @@ Create `docs/agents/lessons.md` from [lessons.md](./lessons.md) when it does not
 
 ### 5. The bar
 
-Skip when `CONSTRAINTS.md` already exists. Otherwise read [`../constraints/SKILL.md`](../constraints/SKILL.md) and run its process here. Done when its own completion criteria hold: `check` is green on the base branch and the floor guard is red on a throwaway branch.
+Skip when `CONSTRAINTS.md` already exists and its rows cover every stack you found in step 1. Otherwise read [`../constraints/SKILL.md`](../constraints/SKILL.md) and run its process here, starting from the stacks you found. It confirms them with the user, writes rows only for those, and tells the floor guard which stacks to check. When a stack has been added to or removed from the repo since the last run, update the rows and `floor-guard.config.json` to match. Done when its own completion criteria hold: `check` is green on the base branch and the floor guard is red on a throwaway branch.
 
 ### 6. The verify skill
 
