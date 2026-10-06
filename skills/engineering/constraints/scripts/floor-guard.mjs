@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // floor-guard.mjs — diff-scoped enforcement of the CONSTRAINTS.md floor.
-// Usage: node floor-guard.mjs [--base <ref>]   (default base: origin/main)
+// Usage: node floor-guard.mjs [--base <ref>] [--warn-config]   (default base: origin/main)
 import { execFileSync } from 'node:child_process';
 
 const base = (() => {
@@ -143,6 +143,23 @@ for (const r of removedRules) {
     });
   }
   if (verdict) flag(verdict, r.file, r.text + '  ->  ' + a.text);
+}
+
+// 6. A checker's own config changed: lint, compiler, test runner, CI, hooks, or the check scripts in
+// package.json. Turning a rule off here lowers the bar without touching CONSTRAINTS.md. The guard
+// cannot read direction in these files, so it reports every change and a person decides.
+// --warn-config prints these without failing, for a pull request where a person has approved them.
+const CHECKER_CONFIG = /(^|\/)(eslint\.config\.[cm]?[jt]s|\.eslintrc(\.[a-z]+)?|\.eslintignore|tsconfig[^/]*\.json|biome\.jsonc?|(vitest|jest|playwright)\.config\.[cm]?[jt]s|\.gitlab-ci\.yml|lefthook\.yml|\.pre-commit-config\.yaml)$|(^|\/)\.github\/workflows\/|(^|\/)\.husky\//;
+const SCRIPT_LINE = /^\s*"(check|lint|test|typecheck|type-check)[^"]*"\s*:/;
+const configChanges = new Set();
+for (const { file } of [...added, ...removed]) if (CHECKER_CONFIG.test(file)) configChanges.add(file);
+for (const { file, text } of removed) {
+  if (/(^|\/)package\.json$/.test(file) && SCRIPT_LINE.test(text)) configChanges.add(file + ' (check scripts)');
+}
+if (process.argv.includes('--warn-config')) {
+  for (const f of configChanges) console.error(`floor-guard: warning [checker-config-changed] ${f}`);
+} else {
+  for (const f of configChanges) flag('checker-config-changed', f, 'a checker\'s config changed; a person approves this');
 }
 
 if (findings.length === 0) { console.log('floor-guard: clean'); process.exit(0); }

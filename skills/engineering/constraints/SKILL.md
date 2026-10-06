@@ -38,6 +38,7 @@ An agent writes more code than you will read, so the bar has to live in checks t
 ## Rules
 
 - **Loosening is loud.** Lowering a threshold, removing a rule or adding an exception gets its own commit and a line in the PR's Merge Danger. Tightening needs no ceremony.
-- **The floor guard reports five moves**, the cheap roads to green: a threshold moved, a test made easier, a checker silenced, work left unfinished, an exception added. Exit code 2 means the guard could not run. Report that as "could not run", never as clean.
+- **The floor guard reports six moves**, the cheap roads to green: a threshold moved, a test made easier, a checker silenced, work left unfinished, an exception added, a checker's own config changed. Exit code 2 means the guard could not run. Report that as "could not run", never as clean.
+- **A checker's config is part of the bar.** The guard flags any change to lint, compiler, test runner, CI or hook config, and to the check scripts in `package.json`. It cannot tell tightening from loosening there, so a person decides. `--warn-config` prints those findings without failing. Use it on a pull request where a person has approved the config change, and nowhere an agent runs alone.
 - **Scope to the diff.** Coverage of changed lines is a number this change can move. Project coverage is inherited, so it is held, not targeted.
 - **Machine-wide tools can run in CI only.** On a machine where installs need approval, say so in the row's "Runs at" cell.

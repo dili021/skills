@@ -1,7 +1,6 @@
 ---
 name: implement
-description: "Implement a piece of work based on a spec or set of tickets."
-disable-model-invocation: true
+description: "Build one ticket, or one chain of tickets, in this session: test-first, reviewed, then proven. Use when the work is a single ticket or tickets that each block the next."
 ---
 
 Implement the work described by the user in the spec or tickets.

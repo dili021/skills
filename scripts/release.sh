@@ -8,6 +8,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Git Bash on Windows reports /c/..., which Node cannot resolve. Hand it C:/... instead.
+command -v cygpath >/dev/null 2>&1 && ROOT="$(cygpath -m "$ROOT")"
 cd "$ROOT"
 LEVEL="${1:-patch}"
 MSG=""
