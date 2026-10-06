@@ -1,17 +1,17 @@
 ---
 name: afk
-description: Drive a task from its brief to a merge-ready pull request while I am away.
+description: Drive a task from its brief to a merge-ready pull request or branch while I am away.
 disable-model-invocation: true
 argument-hint: "ticket, spec, issue or problem statement"
 ---
 
 # AFK
 
-Take a task from its brief to a **merge-ready** pull request without the user: built, proven, reviewed, CI green, evidence in the PR body. The user merges. This skill never merges, deploys or force-pushes.
+Take a task from its brief to **merge-ready** without the user: built, proven, reviewed, green, with the evidence written down. `docs/agents/handoff.md` says what merge-ready is in this repo: a pull request that is ready for review, or a local branch with a handoff note. The user merges. This skill never merges, deploys or force-pushes.
 
 ## The contract
 
-1. **Preflight the project.** Look for `CONSTRAINTS.md` with its `check` command, a `verify-<app>` skill, CI that runs on pull requests, and a clean working tree. For each one missing, say what it costs this run (without a verify skill, UI criteria come back INCONCLUSIVE) and that `/setup-dili-skills` adds it. Done when each is present or the cost is stated in the contract.
+1. **Preflight the project.** Look for `CONSTRAINTS.md` with its `check` command, a `verify-<app>` skill, `docs/agents/handoff.md`, CI on pull requests when the handoff is a pull request, and a clean working tree. For each one missing, say what it costs this run (without a verify skill, UI criteria come back INCONCLUSIVE) and that `/setup-dili-skills` adds it. Done when each is present or the cost is stated in the contract.
 
 2. **Reproduce, when the brief is a problem.** Drive the app on the base branch, with `verify-<app>` when there is one, until you see the problem yourself. Keep that evidence as the "before". A problem you cannot reproduce after driving it as far as the tools reach ends the run as **blocked**, with what you tried.
 
@@ -32,7 +32,7 @@ Take a task from its brief to a **merge-ready** pull request without the user: b
 
 ## The run
 
-7. **Isolate and log.** Work in a git worktree off the base branch. `lanes` makes its own. Call the Skill tool with `show-me-your-work` and keep its decision log for the whole run.
+7. **Isolate and log.** Work in a git worktree off the base branch. `lanes` makes its own. Keep this run's files in `.afk/<branch>/` in the primary checkout, where they outlive the worktree: the decision log, the evidence, the handoff note. Call the Skill tool with `show-me-your-work` and keep its log there for the whole run.
 
 8. **Build through the route.** `implement` and `lanes` build test-first, run the project's `check` command, and end on `code-review` and `verdict`. Advance only from green.
 
@@ -46,14 +46,20 @@ Take a task from its brief to a **merge-ready** pull request without the user: b
 
 12. **Read the proof.** The route has already run `code-review` and `verdict`. A verdict that still fails after its three rounds makes this run **flawed**.
 
-13. **Open the pull request.** Call the Skill tool with `pr` for the body, and put an **Attention** section first: every `assumed` criterion and decision, every INCONCLUSIVE criterion, every accepted trade-off, every stop-list item still waiting. Open it ready for review on PASS or PASS+NOTES. Otherwise open it as a draft that names what is missing.
+13. **Write the handoff.** Call the Skill tool with `pr` for the body, and put an **Attention** section first: every `assumed` criterion and decision, every INCONCLUSIVE criterion, every accepted trade-off, every stop-list item still waiting.
+    - **Pull request**: open it ready for review on PASS or PASS+NOTES. Otherwise open it as a draft that names what is missing.
+    - **Local branch**: write the body to `.afk/<branch>/HANDOFF.md` and push nothing.
 
-14. **Drive CI to green.** Watch the checks with the project's forge CLI. Batch every known fix into one push. Fix real review-bot findings and dismiss noise with the reason stated on the thread. Product code pushed after the verdict needs a new verdict.
+14. **Bring it to green on the current base.**
+    - **Pull request**: watch the checks with the project's forge CLI. Batch every known fix into one push. Fix real review-bot findings and dismiss noise with the reason stated on the thread.
+    - **Local branch**: no CI will run, so this run's own checks are the last gate. Merge the base branch's tip into the work branch, then run `check` and the full test suite there. Leave the base branch as it is.
+
+    Product code committed after the verdict needs a new verdict.
 
 15. **Propose lessons.** List this run's candidates for `docs/agents/lessons.md` as ready-to-add rows: each verdict round that failed for a real reason, each floor guard finding, each time you assumed or asked what the code already answered. Add them when the user says so. When the user later overturns an `assumed` criterion, that is a row too.
 
-16. **Reply with the run's class first**, then the PR link, the predicate's state line by line, the Attention list, the proposed lessons, and what you tried and discarded:
-    - **merge-ready**: verdict passed, CI green, nothing waiting.
+16. **Reply with the run's class first**, then the PR link, or the branch name with the path to its handoff note and the merge command from `docs/agents/handoff.md`, the predicate's state line by line, the Attention list, the proposed lessons, and what you tried and discarded:
+    - **merge-ready**: verdict passed, checks green on the current base, nothing waiting.
     - **needs you**: a stop-list item or a product call is waiting.
     - **flawed**: the verdict still fails after three rounds.
     - **blocked**: access, credentials or environment are missing, or the problem did not reproduce.

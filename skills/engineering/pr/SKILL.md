@@ -1,6 +1,6 @@
 ---
 name: pr
-description: "Use when writing a PR body."
+description: "Use when writing a PR body, or the handoff note for a branch that will be merged locally."
 metadata:
   credits:
     skill: show-me
@@ -168,3 +168,5 @@ Execution-based evidence is A-tier. Test results, console output. Show the exact
 Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. A PR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
 
 The blast radius is the potential impact or scope of the changes introduced by this PR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
+
+When the repo has `graphify-out/`, call the Skill tool with `code-graph` and ask what the diff reaches. Name the reached features and modules under the one-word description, and say whether each was driven. Say which source the radius came from: the code graph, or grep when the graph is missing or stale.

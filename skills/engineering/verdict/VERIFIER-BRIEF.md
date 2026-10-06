@@ -14,6 +14,8 @@ You are verifying a change you did not write. Assume the author is overconfident
    Proven by: <command, test name, or user path and the state that shows it>
 2. …
 
+**Neighbours:** <features the diff reaches that the contract does not name, each with the chain that connects it, or "none known, no code graph">. Drive each once at head and report it under "Outside the contract".
+
 **Refs:** base `<base ref>`, head `<head ref>`, checked out at `<worktree path>`.
 
 **How to run the app:** <path to the `verify-<app>` skill, or the launch command, the port, the seed data and the test account>.
