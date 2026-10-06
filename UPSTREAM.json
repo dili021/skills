@@ -5,8 +5,8 @@
       "url": "https://github.com/mattpocock/skills.git",
       "branch": "main",
       "license": "MIT",
-      "pinned": "3cca18b368ae95cdbdebbff572ccafa662551015",
-      "pinnedDate": "2026-09-04T09:43:27+01:00",
+      "pinned": "4588b32ecab9ecc9fc8cc6b6c5e7d675b6004b0d",
+      "pinnedDate": "2026-10-06T09:11:03.586Z",
       "skillRoots": [
         "skills/engineering",
         "skills/productivity",
@@ -66,9 +66,17 @@
       "upstream": "mattpocock",
       "path": "skills/engineering/implement"
     },
+    "implement-spec": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/implement-spec"
+    },
     "improve-codebase-architecture": {
       "upstream": "mattpocock",
       "path": "skills/engineering/improve-codebase-architecture"
+    },
+    "pr": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/pr"
     },
     "prototype": {
       "upstream": "mattpocock",
@@ -78,9 +86,9 @@
       "upstream": "mattpocock",
       "path": "skills/engineering/research"
     },
-    "resolving-merge-conflicts": {
+    "retro": {
       "upstream": "mattpocock",
-      "path": "skills/engineering/resolving-merge-conflicts"
+      "path": "skills/engineering/retro"
     },
     "setup-matt-pocock-skills": {
       "upstream": "mattpocock",
