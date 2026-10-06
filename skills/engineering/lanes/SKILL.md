@@ -99,8 +99,8 @@ Repeat until every lane and eager join has merged. Then dispatch the held joins,
 
 ### 8. Verify and clean up
 
-On the base branch, with everything merged: run the full test suite, then `/code-review`.
+On the base branch, with everything merged: run the full test suite, then `/code-review`, then `/verdict` against the tickets' acceptance criteria.
 
 Remove the lane worktrees with `git worktree remove`, and delete the merged lane branches.
 
-Report to the user: which lanes ran, what each delivered, every conflict you resolved and how, anything a lane left undone, and anything a lane discovered that changes the remaining work.
+Report to the user: the verdict, which lanes ran, what each delivered, every conflict you resolved and how, anything a lane left undone, and anything a lane discovered that changes the remaining work.
