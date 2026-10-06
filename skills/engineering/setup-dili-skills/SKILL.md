@@ -137,7 +137,14 @@ When the app cannot be started here (missing credentials, VPN, seed data), stop 
 
 ### 7. The code graph
 
-Skip when `graphify` is not on `PATH`, and report the row as missing and optional. Otherwise build a code-only graph when `graphify-out/` does not exist, then run `graphify hook install` so commits and checkouts rebuild it. Take exact commands from `graphify --help`. Done when `graphify hook status` reports the hooks and one query against the graph returns nodes from every stack in the repo.
+Skip when `graphify` is not on `PATH`, and report the row as missing and optional. Otherwise:
+
+1. Unless the repo already tracks `graphify-out/`, add `graphify-out/` to `.git/info/exclude`. The graph is a local build product.
+2. Build the graph when it does not exist: `graphify extract . --code-only`.
+3. Run `graphify hook install`, so a commit or a checkout rebuilds the graph in the background.
+4. `hook install` also registers a merge driver and writes a `graphify-out/graph.json merge=graphify` line into `.gitattributes`. That line only matters when the graph is committed. When it is not, undo it: restore `.gitattributes` if git tracks the file, delete it if the hook created it. Tell the user you did.
+
+Done when `graphify hook status` reports both hooks, `git status` shows nothing new from this step, and `graph.json` holds nodes from every stack in the repo.
 
 ### 8. Report readiness
 

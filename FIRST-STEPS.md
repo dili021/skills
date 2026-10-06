@@ -86,7 +86,9 @@ The skills name no stack, but three things need care.
 
 ## The code graph
 
-With graphify installed, `/setup-dili-skills` builds the graph and installs the git hooks that rebuild it on commit and checkout. `/verdict` then asks it which features a diff reaches and has the verifier drive those too, `/lanes` asks it what two lanes share, and `/pr` names the blast radius from it. Each use refreshes the graph first, and a graph that cannot be refreshed is reported as stale and left unused.
+With graphify installed, `/setup-dili-skills` builds the graph and installs the git hooks that rebuild it on commit and checkout. `/verdict` then runs a script that maps the diff to the symbols it reaches and has the verifier drive those features too, `/lanes` asks the graph what two lanes share, and `/pr` names the blast radius from it. Each use refreshes the graph first, and a graph that cannot be refreshed is reported as stale and left unused.
+
+Two limits, both seen on a test repo with C#, TypeScript and Python. The graph does not connect an Angular service to the .NET route it calls, so a changed route still needs a grep on the other side. And it misses some calls, such as one written with a fully qualified name. A symbol missing from the reach is unproven.
 
 ## What stays mine
 
