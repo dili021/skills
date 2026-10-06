@@ -18,11 +18,13 @@ claude plugin marketplace add dili021/skills
 claude plugin install dili-skills@dili
 ```
 
-Already installed: `/plugin update`. In the work repo, run `/setup-matt-pocock-skills` once. It records the issue tracker, the triage labels and where the glossary and ADRs live. A repo that still has `CONTEXT.md` renames it to `GLOSSARY.md`.
+Already installed: `/plugin update`. A repo that still has `CONTEXT.md` renames it to `GLOSSARY.md`.
 
-## 2. Write the bar: `/constraints`
+In the work repo, run `/setup-dili-skills` once. It records the issue tracker, the triage labels and where the glossary and ADRs live, then runs steps 2 and 3 below and ends with a readiness table. `/ask-dili` answers which skill fits a situation.
 
-Produces `CONSTRAINTS.md`, one `check` command, and the floor guard.
+## 2. Write the bar
+
+`/setup-dili-skills` runs this. `/constraints` runs it alone. Produces `CONSTRAINTS.md`, one `check` command, and the floor guard.
 
 Done when:
 
@@ -32,9 +34,9 @@ Done when:
 
 Wiring the checks into CI changes shared config, so leave that for the PR in step 6.
 
-## 3. Make the app provable: `/create-verification-skill`
+## 3. Make the app provable
 
-Produces `.claude/skills/verify-<app>/` with Launch, Doctor, Drive, Evidence and Cleanup sections, and a feature map with the top three to five features.
+`/setup-dili-skills` runs this too. `/create-verification-skill` runs it alone. Produces `.claude/skills/verify-<app>/` with Launch, Doctor, Drive, Evidence and Cleanup sections, and a feature map with the top three to five features.
 
 Done when the skill has run its own instructions once end to end: launched the app, driven one mapped feature, captured evidence, cleaned up, and the evidence is still there afterwards. A generated skill that never ran is a draft.
 
@@ -44,7 +46,7 @@ This is the step most likely to stall on a work project: local auth, VPN, seed d
 
 Pick a small ticket, a day's work or less, that `git revert` fully undoes.
 
-1. Write its acceptance criteria, each with a **Proven by** line. `/to-tickets` does this for a spec.
+1. Give it acceptance criteria, each with a **Proven by** line. `/to-tickets` writes them for a spec and I correct them.
 2. `/implement`.
 3. Read the `/verdict` table at the end, then open the evidence files and compare them with what I see when I use the app myself.
 
@@ -52,9 +54,9 @@ That comparison is the point of the step. When PASS matches what I see, the verd
 
 ## 5. One task away from the keyboard: `/afk`
 
-The same size of task, a different one. Approve the contract once: finish condition, route, stop list, escape hatch. Then leave it.
+The same size of task, a different one. For a small problem that `git revert` undoes, `/afk` reproduces it, writes its own criteria and starts without waiting. For anything larger it posts the contract and waits for a yes: finish condition, route, stop list, escape hatch.
 
-When I come back, read in this order: the run's class, the Attention section, the verdict table, the evidence. The diff comes last, and only where Attention points.
+When I come back, read in this order: the run's class, the Attention section, the verdict table, the evidence. The diff comes last, and only where Attention points. Criteria the agent wrote are marked `assumed` in Attention. A wrong one costs another round, so correct it there.
 
 Repeat until three runs in a row come back merge-ready with nothing in Attention that surprised me. Then move to ticket sets with `/lanes` under `/afk`.
 
@@ -68,13 +70,13 @@ Each correction becomes a check: a lint rule, a row in `CONSTRAINTS.md`, a line 
 
 Two habits keep the setup from rotting:
 
-- **A buffer before a fix.** When the same kind of mistake shows up twice, write it to one notes file and leave it unfixed. Read the file every few days. Ten entries side by side show the pattern that ten separate fixes hide, and the pattern is what becomes a lint rule.
-- **A command instead of a throwaway script.** The second time an agent writes its own script to drive the app, move that script into the verify skill as a helper command. Every later agent then drives the app the same way.
+- **A buffer before a fix.** `/afk` ends each run by proposing rows for `docs/agents/lessons.md`: mistakes that a check, a verifier or I had to catch and that could happen again. I say which to add. `/retro` reads the file and proposes a check once one kind of mistake has three rows.
+- **A command instead of a throwaway script.** The verify skill tells agents to save any new driving script in `helpers/candidates/`. `/maintain-verification-skill` merges candidates that do the same job into one helper command and proves it live.
 
 Once a week, `/maintain-verification-skill`, so the feature map keeps matching the app.
 
 ## What stays mine
 
 - The merge.
-- Everything on `/afk`'s stop list: deploys, data migrations and deletions, force-pushes, auth, permissions, payments, secrets, messages to people outside the repo, loosening `CONSTRAINTS.md`.
+- Everything on `/afk`'s stop list: deploys, data migrations and deletions, force-pushes, auth, permissions, payments, secrets, messages to people outside the repo, and lowering the bar, which covers `CONSTRAINTS.md` and the config of every checker.
 - Product and preference calls. Facts the agent can observe by running something are the agent's to settle.

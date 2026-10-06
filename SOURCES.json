@@ -1,0 +1,224 @@
+{
+  "upstreams": [
+    {
+      "name": "mattpocock",
+      "url": "https://github.com/mattpocock/skills.git",
+      "branch": "main",
+      "license": "MIT",
+      "pinned": "4588b32ecab9ecc9fc8cc6b6c5e7d675b6004b0d",
+      "pinnedDate": "2026-10-06T09:11:03.586Z",
+      "mirror": [
+        "skills"
+      ]
+    },
+    {
+      "name": "pstack",
+      "url": "https://github.com/cursor/plugins.git",
+      "branch": "main",
+      "license": "MIT",
+      "pinned": "df581122cde17e6e27686b5a448bde23e4ad4318",
+      "pinnedDate": "2026-10-06T10:08:24.193Z",
+      "mirror": [
+        "pstack/skills/unslop",
+        "pstack/skills/create-verification-skill",
+        "pstack/skills/maintain-verification-skill",
+        "pstack/skills/show-me-your-work"
+      ]
+    },
+    {
+      "name": "jasonku09",
+      "url": "https://github.com/jasonku09/grill-with-ui.git",
+      "branch": "main",
+      "license": "MIT",
+      "pinned": "daafa1e2111d7c6efc85a11b00cbbdae42a72c9d",
+      "pinnedDate": "2026-09-21T00:00:00.000Z",
+      "mirror": [
+        "SKILL.md",
+        "page.html",
+        "server.mjs",
+        "visual-brief.md",
+        "test/server.test.mjs"
+      ]
+    },
+    {
+      "name": "addyosmani",
+      "url": "https://github.com/addyosmani/agent-skills.git",
+      "branch": "main",
+      "license": "MIT",
+      "pinned": "1401c8b8030e023baeebb31781a6653fe8e93026",
+      "pinnedDate": "2026-10-06T00:00:00.000Z",
+      "mirror": [
+        "skills/constraint-driven-development"
+      ]
+    }
+  ],
+  "derived": {
+    "ask-dili": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/ask-matt",
+      "mode": "watch"
+    },
+    "code-review": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/code-review",
+      "mode": "port"
+    },
+    "codebase-design": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/codebase-design",
+      "mode": "port"
+    },
+    "constraints": {
+      "upstream": "addyosmani",
+      "path": "skills/constraint-driven-development",
+      "mode": "watch"
+    },
+    "create-verification-skill": {
+      "upstream": "pstack",
+      "path": "pstack/skills/create-verification-skill",
+      "mode": "port"
+    },
+    "diagnosing-bugs": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/diagnosing-bugs",
+      "mode": "port"
+    },
+    "domain-modeling": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/domain-modeling",
+      "mode": "port"
+    },
+    "grill-me": {
+      "upstream": "mattpocock",
+      "path": "skills/productivity/grill-me",
+      "mode": "port"
+    },
+    "grill-with-docs": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/grill-with-docs",
+      "mode": "port"
+    },
+    "grill-with-ui": {
+      "upstream": "jasonku09",
+      "path": ".",
+      "mode": "port",
+      "files": [
+        "SKILL.md",
+        "page.html",
+        "server.mjs",
+        "visual-brief.md",
+        "test/server.test.mjs"
+      ]
+    },
+    "grilling": {
+      "upstream": "mattpocock",
+      "path": "skills/productivity/grilling",
+      "mode": "port"
+    },
+    "handoff": {
+      "upstream": "mattpocock",
+      "path": "skills/productivity/handoff",
+      "mode": "port"
+    },
+    "implement": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/implement",
+      "mode": "port"
+    },
+    "improve-codebase-architecture": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/improve-codebase-architecture",
+      "mode": "port"
+    },
+    "maintain-verification-skill": {
+      "upstream": "pstack",
+      "path": "pstack/skills/maintain-verification-skill",
+      "mode": "port"
+    },
+    "pr": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/pr",
+      "mode": "port"
+    },
+    "prototype": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/prototype",
+      "mode": "port"
+    },
+    "research": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/research",
+      "mode": "port"
+    },
+    "retro": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/retro",
+      "mode": "port"
+    },
+    "setup-dili-skills": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/setup-matt-pocock-skills",
+      "mode": "port"
+    },
+    "show-me-your-work": {
+      "upstream": "pstack",
+      "path": "pstack/skills/show-me-your-work",
+      "mode": "port"
+    },
+    "tdd": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/tdd",
+      "mode": "port"
+    },
+    "teach": {
+      "upstream": "mattpocock",
+      "path": "skills/productivity/teach",
+      "mode": "port"
+    },
+    "to-questionnaire": {
+      "upstream": "mattpocock",
+      "path": "skills/productivity/to-questionnaire",
+      "mode": "port"
+    },
+    "to-spec": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/to-spec",
+      "mode": "port"
+    },
+    "to-tickets": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/to-tickets",
+      "mode": "port"
+    },
+    "triage": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/triage",
+      "mode": "port"
+    },
+    "unslop": {
+      "upstream": "pstack",
+      "path": "pstack/skills/unslop",
+      "mode": "port"
+    },
+    "wait-what": {
+      "upstream": "mattpocock",
+      "path": "skills/productivity/wait-what",
+      "mode": "port"
+    },
+    "wayfinder": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/wayfinder",
+      "mode": "port"
+    },
+    "wizard": {
+      "upstream": "mattpocock",
+      "path": "skills/engineering/wizard",
+      "mode": "port"
+    },
+    "writing-for-agents": {
+      "upstream": "mattpocock",
+      "path": "skills/productivity/writing-for-agents",
+      "mode": "port"
+    }
+  }
+}

@@ -1,7 +1,6 @@
 ---
 name: lanes
-description: Implement a set of tickets in parallel, one agent per dependency lane.
-disable-model-invocation: true
+description: Build a set of tickets in parallel, one agent and one worktree per dependency lane. Use when the tickets form two or more independent chains.
 ---
 
 # Lanes
@@ -10,7 +9,7 @@ Implement a set of tickets in parallel. Cut the tickets into **lanes**, give eac
 
 A **lane** is a chain of tickets that must run in order because each blocks the next. Lanes are independent of each other by construction, so they run at the same time.
 
-`/implement` is the single-lane version of this. Use it when the tickets form one chain.
+`/implement` is the single-lane version of this. When step 2 cuts one lane, stop here and call the Skill tool with `implement`.
 
 ## Process
 
