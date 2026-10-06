@@ -33,7 +33,7 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - `CONSTRAINTS.md` at the repo root, and a `check` entry in the repo's scripts
 - `.claude/skills/verify-*/`: is there a verify skill already?
 - Which stacks the repo holds (`*.sln` and `*.csproj`, `pyproject.toml`, `package.json`) and in which directories
-- A forge CLI (`gh`, `glab`, `az`) on `PATH` and signed in, and whether recent history merges through pull requests
+- The git host's CLI (`gh`, `glab`, `az`) on `PATH` and signed in, and whether recent history merges through pull requests
 - `graphify` on `PATH`, `graphify-out/`, and `graphify hook status`
 - `.scratch/`: a sign that a local-markdown issue tracker convention is already in use
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
@@ -70,7 +70,7 @@ The defaults are the five canonical roles, each label string equal to its name: 
 
 Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSSARY.md` files) only when exploration found monorepo signals. Then confirm which layout they want.
 
-**Section D: Handoff.** Ask one question: does finished work reach the base branch through a pull request, or through a local merge? Recommend pull request when a forge CLI is signed in and recent history merges that way. Recommend local branch otherwise. For a local merge, ask one more: may the run push its work branch, so that CI and review bots that react to pushed branches still see it? Recommend yes when the forge runs anything on branch pushes. Record the answers and the base branch in `docs/agents/handoff.md`, from [handoff.md](./handoff.md).
+**Section D: Handoff.** Ask one question: does finished work reach the base branch through a pull request, or through a local merge? Recommend pull request when the git host's CLI is signed in and recent history merges that way. Recommend local branch otherwise. For a local merge, ask one more: may the run push its work branch, so that CI and review bots that react to pushed branches still see it? Recommend yes when the git host runs anything on branch pushes. Record the answers and the base branch in `docs/agents/handoff.md`, from [handoff.md](./handoff.md).
 
 ### 3. Confirm and edit
 

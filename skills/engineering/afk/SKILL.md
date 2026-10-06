@@ -51,8 +51,8 @@ Take a task from its brief to **merge-ready** without the user: built, proven, r
     - **Local branch**: write the body to `.afk/<branch>/HANDOFF.md`. Push the work branch only when `docs/agents/handoff.md` says so, and never the base branch.
 
 14. **Bring it to green on the current base.**
-    - **Pull request**: watch the checks with the project's forge CLI. Batch every known fix into one push. Fix real review-bot findings and dismiss noise with the reason stated on the thread.
-    - **Local branch**: merge the base branch's tip into the work branch, then run `check` and the full test suite there. These are the last gate. When the branch was pushed and the forge ran checks on it, read those too. Leave the base branch as it is.
+    - **Pull request**: watch the checks with the git host's CLI (`gh`, `glab` or `az`). Batch every known fix into one push. Fix real review-bot findings and dismiss noise with the reason stated on the thread.
+    - **Local branch**: merge the base branch's tip into the work branch, then run `check` and the full test suite there. These are the last gate. When the branch was pushed and the git host ran checks on it, read those too. Leave the base branch as it is.
 
     Product code committed after the verdict needs a new verdict.
 
