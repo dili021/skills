@@ -2,7 +2,7 @@
 
 My agent skills, in one repo, installable anywhere as a Claude Code plugin.
 
-Version 2 is one flow: a problem becomes a contract, an agent runs the contract to a merge-ready
+Version 1 is one flow: a problem becomes a contract, an agent runs the contract to a merge-ready
 pull request, and I give the verdict. The skills are mine. Most are derived from
 [mattpocock/skills](https://github.com/mattpocock/skills), some from
 [poteto/pstack](https://github.com/cursor/plugins/tree/main/pstack),
