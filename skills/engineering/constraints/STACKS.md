@@ -1,6 +1,8 @@
 # Checks by stack
 
-The usual command behind each row of `CONSTRAINTS.md`, per stack. Use the repo's own script when it has one, and confirm every command by running it once. A repo with several stacks gets one set of rows per stack, each scoped to its own directory.
+The usual command behind each row of `CONSTRAINTS.md`, per stack. Use the repo's own script when it has one, and confirm every command by running it once. A repo with several stacks gets one set of rows per stack, each scoped to its own directory. Write rows only for the stacks the user confirmed, and name the same stacks in `floor-guard.config.json`.
+
+A stack with no section here still gets rows: take its commands from the repo's own scripts and CI, and give the floor guard its patterns through `extra`.
 
 ## .NET
 
@@ -26,6 +28,20 @@ Config the floor guard treats as part of the bar: `.editorconfig`, `.globalconfi
 | Security: deps | `pip-audit` | |
 
 Config the floor guard treats as part of the bar: `ruff.toml`, `mypy.ini`, `pyrightconfig.json`, `pytest.ini`, `tox.ini`, `setup.cfg`, `.flake8`, and the rule and threshold lines of `pyproject.toml`.
+
+## Angular
+
+The floor guard stack name is `ts`.
+
+| Dimension | Command | Notes |
+|-----------|---------|-------|
+| Types and templates | `ng build` | With `strictTemplates` on in `tsconfig.json`, the build is the external verdict on templates too |
+| Lint | `ng lint` | Needs `angular-eslint` configured |
+| Tests and coverage | `ng test --watch=false --browsers=ChromeHeadless --code-coverage` | Writes lcov, which `diff-cover` reads for changed lines |
+| Bundle size | the `budgets` in `angular.json` | `ng build` fails when a budget's `maximumError` is passed |
+| Security: deps | `npm audit --audit-level=high` | |
+
+Config the floor guard treats as part of the bar: `tsconfig*.json`, the ESLint config, `karma.conf.js`, and the budget lines of `angular.json`. It also flags `fdescribe` and `fit`, which make every other test stop running.
 
 ## TypeScript and JavaScript
 

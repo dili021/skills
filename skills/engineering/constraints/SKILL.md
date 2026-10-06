@@ -15,7 +15,7 @@ An agent writes more code than you will read, so the bar has to live in checks t
 
 ## Process
 
-1. **Read before asking.** Find the stack, the test runner, the linters, today's coverage, the CI workflows and any agent hooks. Report what you found in two lines. Done when you can name the typecheck, lint and test commands, or say which one is missing.
+1. **Read before asking.** Find every stack in the repo and the directory each lives in, then per stack the test runner, the linters and today's coverage. Find the CI workflows and any agent hooks. Report the stacks as one line each, `<stack> in <directory>`, and ask the user to confirm or correct that list before going on. Done when the user has confirmed the stacks and you can name the typecheck, lint and test commands for each, or say which one is missing.
 
 2. **Ask four questions, one at a time, each with a default.** "I don't know" takes the default.
    - Which dimensions beyond the floor: coverage of changed lines, security scanning, performance budgets, accessibility, architecture boundaries. Default: coverage and security.
@@ -29,7 +29,7 @@ An agent writes more code than you will read, so the bar has to live in checks t
 
 4. **Place each check by cost.** The edit loop takes checks under 5 seconds on changed files: types, lint, the floor. Task end takes checks inside the budget from step 2: related tests, coverage of changed lines, the floor guard. CI takes everything else. Add one `check` entry in the place this repo keeps its scripts, running the task-end set. Done when `check` is green on the base branch.
 
-5. **Install the floor guard.** Copy [`scripts/floor-guard.mjs`](scripts/floor-guard.mjs) into the repo's scripts directory, add it to `check` and to CI, and extend its three patterns for this stack. Prove it: on a throwaway branch add one suppression comment and confirm exit code 1, then discard the branch. Done when the guard is clean on the base branch and red on the throwaway.
+5. **Install the floor guard.** Copy [`scripts/floor-guard.mjs`](scripts/floor-guard.mjs) into the repo's scripts directory and add it to `check` and to CI. Beside it, write `floor-guard.config.json` with the confirmed stacks, so patterns for stacks this repo lacks stay off: `{ "stacks": ["dotnet", "ts", "python"] }`. The guard knows `ts`, `dotnet`, `python` and `go`. For a stack it lacks, or a suppression style this repo uses that it misses, add regex strings under `extra` (`suppress`, `stub`, `skip`, `test`, `assert`, `config`) instead of editing the script. Read the repo for those first: search for how existing code silences its linter and skips its tests. Prove it: on a throwaway branch add one suppression comment and confirm exit code 1, then discard the branch. Done when the guard is clean on the base branch and red on the throwaway.
 
 6. **Find the outside opinion.** Rank every enforced row by who owns its verdict. **External**: a compiler, a vulnerability database, axe, Lighthouse. The agent cannot argue with these. **Project**: lint rules and boundaries a human owns. **Suite**: the project's own tests, which the agent can also rewrite. Done when at least one row is external, or the report says none exists and what it would take to add one.
 
