@@ -34,6 +34,7 @@ You own **lane <N>**. Work only inside `<worktree path>`, on branch `lane/<N>-<s
 - **Tickets not done**: each one, and what stopped you.
 - **Files changed**: the paths, and any file you touched that falls outside the ones you own.
 - **Checks**: the typecheck and test commands you ran, and their results verbatim. Say plainly when a check failed or you skipped it.
+- **Criteria**: every acceptance criterion of every ticket, with the evidence for its **Proven by** line: the command and its output, the test name, or the artifact path. Write `not proven` and the reason where you have none.
 - **Affects other lanes**: anything you found that changes another lane's work: a shared type you altered, an interface that moved, a migration you added, an assumption in the tickets that turned out to be wrong.
 - **Left for the orchestrator**: anything you deliberately did not do.
 

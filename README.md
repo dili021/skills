@@ -37,7 +37,9 @@ Symlinks, not copies — a `git pull` updates them in place. `--prune` clears
   plugin.json        the plugin — its "skills" array is generated, never hand-edited
 skills/
   engineering/       forked from mattpocock; grill-with-ui from jasonku09 (runtime files only,
-                     its design/, docs/ and page e2e test are not vendored)
+                     its design/, docs/ and page e2e test are not vendored);
+                     create-verification-skill, maintain-verification-skill and
+                     show-me-your-work from pstack; lanes, constraints, verdict and afk mine
   productivity/      forked from mattpocock
   writing/           unslop, forked from pstack
   personal/          mine
@@ -54,6 +56,12 @@ UPSTREAM.json        upstream remotes, the commit I last reviewed for each, and 
 
 Skill names must be unique across categories — Claude Code addresses a skill by name, not
 by path. `sync-manifest.mjs` fails loudly on a collision.
+
+## First steps on a project
+
+[`FIRST-STEPS.md`](FIRST-STEPS.md) walks one repo from install to the first `/afk` run: write the
+bar with `/constraints`, make the app provable with `/create-verification-skill`, do one task
+watched, then one unattended.
 
 ## Add a skill
 
@@ -112,6 +120,9 @@ means "reviewed up to here", so the next run shows only what's new.
 
 Most vendored skills are MIT © Matt Pocock, see `LICENSE.mattpocock`. `unslop` is MIT ©
 Lauren Tan (poteto), see `LICENSE.pstack`. `grill-with-ui` is MIT © Jason Ku, see
-`LICENSE.jasonku09`; it needs Node 20+ at run time. My changes and my own skills are MIT © Stefan
+`LICENSE.jasonku09`; it needs Node 20+ at run time. `create-verification-skill`,
+`maintain-verification-skill` and `show-me-your-work` are also from pstack, with Cursor paths
+changed to Claude Code ones. `constraints` follows Addy Osmani's `constraint-driven-development`
+and ships his floor guard script unchanged, MIT © Addy Osmani, see `LICENSE.addyosmani`. My changes and my own skills are MIT © Stefan
 Dili. `find-skills` (vercel-labs) is not vendored here, it stays installed through the
 `skills` CLI.

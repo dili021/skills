@@ -30,6 +30,7 @@ Break the work into **tracer bullet** tickets.
 
 - Each slice cuts a narrow but COMPLETE path through every layer (schema, API, UI, tests): vertical, NOT a horizontal slice of one layer
 - A completed slice is demoable or verifiable on its own
+- Every acceptance criterion carries a **Proven by** line: the command, the test, or the user path whose result shows the criterion holds. A criterion nobody can run is a wish, so rewrite it until someone can
 - Each slice is sized to fit in a single fresh context window
 - Any prefactoring should be done first
 
@@ -77,7 +78,9 @@ Do NOT close or modify any parent issue.
 **Status:** ready-for-agent
 
 - [ ] Acceptance criterion 1
+      Proven by: <command, test name, or user path and the state that shows it>
 - [ ] Acceptance criterion 2
+      Proven by: <…>
 
 </local-ticket-template>
 
@@ -94,7 +97,9 @@ The end-to-end behaviour this ticket makes work, from the user's perspective, no
 ## Acceptance criteria
 
 - [ ] Criterion 1
+      Proven by: <command, test name, or user path and the state that shows it>
 - [ ] Criterion 2
+      Proven by: <…>
 
 ## Blocked by
 

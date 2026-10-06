@@ -51,6 +51,16 @@ A starting situation that generates work, then merges onto the main flow.
 
   When the map clears, **it hands off, it doesn't build**: merge onto the main flow at **`/to-spec`**, which collapses the map's linked decisions into a buildable plan, then `/to-tickets` and `/implement` as usual. Looping the map straight into `/implement` skips that collapse and throws the linked detail away, so go straight to `/implement` only when the effort turned out genuinely small.
 
+## Proof and unattended runs
+
+What lets the agent run longer before you have to look. Set up the first two once per project.
+
+- **`/constraints`** writes the project's quality bar as `CONSTRAINTS.md`: rules with numbers, each naming the command that checks it, plus a floor guard for the cheap roads to green (a threshold moved, a test made easier, a checker silenced).
+- **`/create-verification-skill`** generates a project-local `verify-<app>` skill: how to launch the app, drive it as a user and capture evidence, with a feature map. **`/maintain-verification-skill`** keeps that map honest as the app changes.
+- **`/verdict`** is the independent check. A fresh agent that did not write the code drives the real app against the acceptance criteria and returns PASS, PASS+NOTES or FAIL. `/implement` and `/lanes` end on it. Model-invoked.
+- **`/afk`** runs a task from its brief to a **merge-ready** PR while you are away: one approval up front, a fixed finish condition, a stop list for irreversible actions, and an Attention section for what needs your eyes. It never merges.
+- **`/show-me-your-work`** keeps the decision log `/afk` writes, one row per decision with a pointer to its evidence.
+
 ## Codebase health
 
 Not feature work, just upkeep.
