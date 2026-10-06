@@ -157,7 +157,11 @@ function pull(only) {
         const rel = relTo(d.path, file);
         const mine = join(dir, rel);
         if (!base) {
-          if (existsSync(mine)) { console.log(`   ${skill}/${rel}: new upstream, I already have a file by that name, compare by hand`); continue; }
+          if (existsSync(mine)) {
+            const same = readFileSync(mine, "utf8").replace(/\r\n/g, "\n") === theirs.toString("utf8").replace(/\r\n/g, "\n");
+            if (!same) console.log(`   ${skill}/${rel}: new upstream, I already have a different file by that name, compare by hand`);
+            continue;
+          }
           if (d.files && !d.files.includes(rel)) { console.log(`   ${skill}/${rel}: new upstream file outside the ones I carry, skipped`); continue; }
           mkdirSync(dirname(mine), { recursive: true });
           writeFileSync(mine, theirs);
@@ -173,7 +177,8 @@ function pull(only) {
         }
       }
       for (const file of before) {
-        if (!after.has(file)) console.log(`   ${skill}/${relTo(d.path, file)}: removed upstream, mine kept`);
+        const rel = relTo(d.path, file);
+        if (!after.has(file) && existsSync(join(dir, rel))) console.log(`   ${skill}/${rel}: removed upstream, mine kept`);
       }
     }
     const count = writeMirror(up, cache, head);
