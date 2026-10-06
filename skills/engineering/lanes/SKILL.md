@@ -32,7 +32,7 @@ Apply these rules to the blocking graph:
 
 Worked example. Tickets 1-6, where 2 is blocked by 1, 3 is blocked by nothing, 5 is blocked by 4, and 6 is blocked by 2 and 5. Lane A is 1 then 2, lane B is 3, lane C is 4 then 5, and 6 is a join.
 
-Then check for **collisions**: two lanes that must edit the same file. Grep the codebase for the symbols and files each lane's tickets name. When the repo has `graphify-out/`, also call the Skill tool with `code-graph` and ask what each pair of lanes shares: two lanes that never edit the same file can still meet in a shared module. A collision is a merge conflict you already know about, so resolve it at cut time in one of two ways: fold the two lanes into one, or hand the shared edit to whichever lane touches it first as a prefactor and let the other lane build on the merged result (which makes it a join).
+Then check for **collisions**: two lanes that must edit the same file. Grep the codebase for the symbols and files each lane's tickets name. When the repo has `graphify-out/`, also call the Skill tool with `code-graph` and ask what each pair of lanes shares: two lanes that never edit the same file can still meet in a shared module. The graph stops at a language boundary, so a lane that changes a backend route and a lane that changes the frontend calling it still need the grep. A collision is a merge conflict you already know about, so resolve it at cut time in one of two ways: fold the two lanes into one, or hand the shared edit to whichever lane touches it first as a prefactor and let the other lane build on the merged result (which makes it a join).
 
 Done when every ticket sits in exactly one lane or is marked a join, and every known collision has been folded or turned into a join.
 

@@ -11,7 +11,7 @@ A **verdict** is PASS, PASS+NOTES or FAIL on a change, given by an agent that di
 
 1. **Assemble the contract.** Collect the acceptance criteria from the ticket, the spec or the user's finish condition, each with its **Proven by** line. Add the base ref, the head ref, and the project's `verify-<app>` skill when one exists. When no criteria are written anywhere, write them from the request and mark them "assumed" in the report. Done when every criterion is a sentence someone can check by running something.
 
-2. **Find the neighbours.** When the repo has `graphify-out/`, call the Skill tool with `code-graph` and ask what the diff between the two refs reaches. The reached features that the contract does not name go into the brief as **neighbours**, for the verifier to drive once each. Without a graph, or with a stale one, the brief says so and names no neighbours.
+2. **Find the neighbours.** When the repo has `graphify-out/`, call the Skill tool with `code-graph` and run its reach script against the base ref, in the checkout that holds the change. The reached features that the contract does not name go into the brief as **neighbours**, for the verifier to drive once each. Add the other side of any changed route, DTO or message by grep, because the graph does not cross from one stack to another. Without a graph, or with a stale one, the brief says so and the neighbours come from grep alone.
 
 3. **Run the floor guard** when the repo has one: `node scripts/floor-guard.mjs --base <base>`. Exit code 1 findings go into the verdict. Exit code 2 is reported as "guard could not run".
 
