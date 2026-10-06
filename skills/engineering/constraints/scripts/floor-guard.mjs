@@ -63,15 +63,15 @@ for (const line of diff.split('\n')) {
 
 const findings = [];
 const flag = (rule, f, text) => findings.push({ rule, file: f, text: text.trim().slice(0, 120) });
-const isTest = (f) => /\.(test|spec)\.|_test\.|test_/.test(f);
+const isTest = (f) => /\.(test|spec)\.|_test\.|test_|Tests?\.cs$|(^|\/)tests?\//i.test(f);
 const isConstraints = (f) => /CONSTRAINTS\.md$/.test(f);
 
 // 1. Silenced checker — extend this list for your ecosystem.
-const SUPPRESSIONS = /@ts-ignore|@ts-nocheck|eslint-disable|biome-ignore|# *noqa|# *type: *ignore|istanbul ignore|nosemgrep|gitleaks:allow|Stryker disable/;
+const SUPPRESSIONS = /@ts-ignore|@ts-nocheck|eslint-disable|biome-ignore|# *noqa|# *type: *ignore|istanbul ignore|nosemgrep|gitleaks:allow|Stryker disable|#pragma warning disable|#nullable disable|SuppressMessage\(|ReSharper disable/;
 // 4. Unfinished work.
-const STUBS = /throw new (Error|NotImplemented).*[Nn]ot implemented|catch\s*\(\w*\)\s*\{\s*\}|catch\s*\{\s*\}|\bTODO\b|\bpass\s*# *stub/;
+const STUBS = /throw new (Error|NotImplemented).*[Nn]ot implemented|catch\s*\(\w*\)\s*\{\s*\}|catch\s*\{\s*\}|\bTODO\b|\bpass\s*# *stub|throw new NotImplementedException|raise NotImplementedError/;
 // 2. A test made easier (added skips).
-const SKIPS = /\.(skip|todo)\b|\bxit\(|\bxdescribe\(|@pytest\.mark\.skip|t\.Skip\(/;
+const SKIPS = /\.(skip|todo)\b|\bxit\(|\bxdescribe\(|@pytest\.mark\.(skip|xfail)|@unittest\.skip|t\.Skip\(|\[(Fact|Theory)\(Skip|\[Ignore\b|Assert\.(Ignore|Inconclusive)\(/;
 
 for (const { file, text } of added) {
   if (SUPPRESSIONS.test(text)) flag('silenced-checker', file, text);
@@ -83,7 +83,7 @@ for (const { file, text } of added) {
 // 2b. A test file deleted, or an assertion removed from a test file that still exists.
 for (const f of deleted) if (isTest(f)) flag('test-deleted', f, 'file deleted');
 for (const { file, text } of removed) {
-  if (isTest(file) && !deleted.includes(file) && /\b(expect|assert|should)\b/.test(text)) {
+  if (isTest(file) && !deleted.includes(file) && /\b(expect|assert|Assert|should|Should)\b/.test(text)) {
     flag('assertion-removed', file, text);
   }
 }
@@ -149,12 +149,17 @@ for (const r of removedRules) {
 // package.json. Turning a rule off here lowers the bar without touching CONSTRAINTS.md. The guard
 // cannot read direction in these files, so it reports every change and a person decides.
 // --warn-config prints these without failing, for a pull request where a person has approved them.
-const CHECKER_CONFIG = /(^|\/)(eslint\.config\.[cm]?[jt]s|\.eslintrc(\.[a-z]+)?|\.eslintignore|tsconfig[^/]*\.json|biome\.jsonc?|(vitest|jest|playwright)\.config\.[cm]?[jt]s|\.gitlab-ci\.yml|lefthook\.yml|\.pre-commit-config\.yaml)$|(^|\/)\.github\/workflows\/|(^|\/)\.husky\//;
+const CHECKER_CONFIG = /(^|\/)(eslint\.config\.[cm]?[jt]s|\.eslintrc(\.[a-z]+)?|\.eslintignore|tsconfig[^/]*\.json|biome\.jsonc?|(vitest|jest|playwright)\.config\.[cm]?[jt]s|\.gitlab-ci\.yml|lefthook\.yml|\.pre-commit-config\.yaml|\.editorconfig|\.globalconfig|Directory\.Build\.(props|targets)|stylecop\.json|[^/]*\.ruleset|\.?ruff\.toml|mypy\.ini|pyrightconfig\.json|pytest\.ini|tox\.ini|setup\.cfg|\.flake8|azure-pipelines[^/]*\.ya?ml)$|(^|\/)\.github\/workflows\/|(^|\/)\.husky\//;
 const SCRIPT_LINE = /^\s*"(check|lint|test|typecheck|type-check)[^"]*"\s*:/;
 const configChanges = new Set();
 for (const { file } of [...added, ...removed]) if (CHECKER_CONFIG.test(file)) configChanges.add(file);
-for (const { file, text } of removed) {
+// Files that mix dependencies with checker settings are flagged by line, so a version bump stays quiet.
+const PROJECT_LINE = /<(NoWarn|Nullable|TreatWarningsAsErrors|WarningsAsErrors|WarningsNotAsErrors|WarningLevel|AnalysisLevel|AnalysisMode|EnforceCodeStyleInBuild)>/;
+const PYPROJECT_LINE = /^\s*(select|ignore|extend-select|extend-ignore|per-file-ignores|exclude|strict|disallow_\w+|warn_\w+|ignore_missing_imports|fail_under|addopts)\s*=/;
+for (const { file, text } of [...added, ...removed]) {
   if (/(^|\/)package\.json$/.test(file) && SCRIPT_LINE.test(text)) configChanges.add(file + ' (check scripts)');
+  if (/\.(cs|fs|vb)proj$/.test(file) && PROJECT_LINE.test(text)) configChanges.add(file + ' (warning settings)');
+  if (/(^|\/)pyproject\.toml$/.test(file) && PYPROJECT_LINE.test(text)) configChanges.add(file + ' (checker settings)');
 }
 if (process.argv.includes('--warn-config')) {
   for (const f of configChanges) console.error(`floor-guard: warning [checker-config-changed] ${f}`);

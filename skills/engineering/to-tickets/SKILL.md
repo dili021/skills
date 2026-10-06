@@ -30,7 +30,7 @@ Break the work into **tracer bullet** tickets.
 
 - Each slice cuts a narrow but COMPLETE path through every layer (schema, API, UI, tests): vertical, NOT a horizontal slice of one layer
 - A completed slice is demoable or verifiable on its own
-- Every acceptance criterion carries a **Proven by** line: the command, the test, or the user path whose result shows the criterion holds. A criterion nobody can run is a wish, so rewrite it until someone can
+- Every acceptance criterion carries a **Proven by** line: the command, the test, or the user path whose result shows the criterion holds. A criterion nobody can run is a wish, so rewrite it until someone can. For code that calls a model, the proof is deterministic: a schema the response parses against, the tool that gets called, a score over a fixed evaluation set
 - Each slice is sized to fit in a single fresh context window
 - Any prefactoring should be done first
 

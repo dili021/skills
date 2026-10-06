@@ -25,7 +25,7 @@ An agent writes more code than you will read, so the bar has to live in checks t
 
    Done when all four have an answer or a default.
 
-3. **Write `CONSTRAINTS.md`** from [`CONSTRAINTS-TEMPLATE.md`](CONSTRAINTS-TEMPLATE.md). Every enforced row names the command that produces its verdict. A rule with no command moves to "Measured, not yet enforced" or gets cut. For measure-and-hold, run the measurement now and record today's number with its direction. Done when you have run every enforced row's command once and read its output.
+3. **Write `CONSTRAINTS.md`** from [`CONSTRAINTS-TEMPLATE.md`](CONSTRAINTS-TEMPLATE.md), taking each stack's usual commands from [`STACKS.md`](STACKS.md). A repo with several stacks gets rows per stack, scoped to that stack's directory. Every enforced row names the command that produces its verdict. A rule with no command moves to "Measured, not yet enforced" or gets cut. For measure-and-hold, run the measurement now and record today's number with its direction. Done when you have run every enforced row's command once and read its output.
 
 4. **Place each check by cost.** The edit loop takes checks under 5 seconds on changed files: types, lint, the floor. Task end takes checks inside the budget from step 2: related tests, coverage of changed lines, the floor guard. CI takes everything else. Add one `check` entry in the place this repo keeps its scripts, running the task-end set. Done when `check` is green on the base branch.
 

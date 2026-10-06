@@ -14,6 +14,8 @@ Scaffold the per-repo configuration that the engineering skills assume:
 - **The bar**: `CONSTRAINTS.md`, its `check` command and the floor guard
 - **The verify skill**: a project-local `verify-<app>` skill that drives the app as a user
 - **The lessons file**: `docs/agents/lessons.md`, the buffer of agent mistakes that may become checks
+- **The handoff**: whether a finished run ends on a pull request or on a local branch
+- **The code graph**: a graphify graph and the git hooks that keep it fresh, when graphify is installed
 
 This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write.
 
@@ -30,6 +32,9 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - `docs/agents/`: does this skill's prior output already exist?
 - `CONSTRAINTS.md` at the repo root, and a `check` entry in the repo's scripts
 - `.claude/skills/verify-*/`: is there a verify skill already?
+- Which stacks the repo holds (`*.sln` and `*.csproj`, `pyproject.toml`, `package.json`) and in which directories
+- A forge CLI (`gh`, `glab`, `az`) on `PATH` and signed in, and whether recent history merges through pull requests
+- `graphify` on `PATH`, `graphify-out/`, and `graphify hook status`
 - `.scratch/`: a sign that a local-markdown issue tracker convention is already in use
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
 - Monorepo signals: a `pnpm-workspace.yaml`, a `workspaces` field in `package.json`, or a populated `packages/*` with its own `src/`. These are present only in a genuinely large multi-package repo; their absence means single-context, which is almost every repo.
@@ -64,6 +69,8 @@ The defaults are the five canonical roles, each label string equal to its name: 
 **Section C: Domain docs.** Default to **single-context** (one `GLOSSARY.md` + `docs/adr/` at the repo root). This fits almost every repo; write it without asking.
 
 Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSSARY.md` files) only when exploration found monorepo signals. Then confirm which layout they want.
+
+**Section D: Handoff.** Ask one question: does finished work reach the base branch through a pull request, or through a local merge? Recommend pull request when a forge CLI is signed in and recent history merges that way. Recommend local branch otherwise. Record the answer and the base branch in `docs/agents/handoff.md`, from [handoff.md](./handoff.md).
 
 ### 3. Confirm and edit
 
@@ -128,10 +135,14 @@ Skip when a `verify-<app>` skill already exists. Otherwise call the Skill tool w
 
 When the app cannot be started here (missing credentials, VPN, seed data), stop this step, say exactly what is missing, and carry on to the report. The user fixes the dev setup and re-runs this skill.
 
-### 7. Report readiness
+### 7. The code graph
 
-One table, one row per item: issue tracker, triage labels, domain docs, the bar, the verify skill, the lessons file, CI on pull requests. Each row is **ready**, **missing** or **blocked**, with what a missing or blocked row costs an `/afk` run. Without a verify skill, UI criteria come back INCONCLUSIVE.
+Skip when `graphify` is not on `PATH`, and report the row as missing and optional. Otherwise build a code-only graph when `graphify-out/` does not exist, then run `graphify hook install` so commits and checkouts rebuild it. Take exact commands from `graphify --help`. Done when `graphify hook status` reports the hooks and one query against the graph returns nodes from every stack in the repo.
 
-On a repo shared with a team, say which files this run wrote and offer to list them in `.git/info/exclude`, so they stay out of the team's history until the team has agreed.
+### 8. Report readiness
+
+One table, one row per item: issue tracker, triage labels, domain docs, the bar, the verify skill, the lessons file, the handoff mode, the code graph, CI on pull requests. In local-branch mode the CI row reads "not used, the run's own `check` is the last gate". Each row is **ready**, **missing** or **blocked**, with what a missing or blocked row costs an `/afk` run. Without a verify skill, UI criteria come back INCONCLUSIVE.
+
+On a repo shared with a team, say which files this run wrote and offer to list them in `.git/info/exclude`, together with `.afk/` and `graphify-out/`, so they stay out of the team's history until the team has agreed.
 
 Mention that `docs/agents/*.md` can be edited directly later. Re-running this skill is for switching issue trackers, or for finishing a step that was blocked.
