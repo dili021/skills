@@ -1,6 +1,6 @@
 {
   "name": "dili-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Stefan's agent skills: one flow from a problem to a merge-ready pull request, with the proof built in. Derived from Matt Pocock's skills, poteto's pstack and Addy Osmani's agent-skills.",
   "author": {
     "name": "Stefan Dili",
@@ -26,6 +26,7 @@
     "./skills/engineering/create-verification-skill",
     "./skills/engineering/diagnosing-bugs",
     "./skills/engineering/domain-modeling",
+    "./skills/engineering/flow-map",
     "./skills/engineering/grill-with-docs",
     "./skills/engineering/grill-with-ui",
     "./skills/engineering/implement",

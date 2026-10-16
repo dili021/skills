@@ -131,5 +131,5 @@ from Jason Ku's, MIT © Jason Ku, see `LICENSE.jasonku09`; it needs Node 20+ at 
 `constraints` follows Addy Osmani's `constraint-driven-development` and carries his floor
 guard script with one added rule, MIT © Addy Osmani, see `LICENSE.addyosmani`. `pr` credits
 Dex Horthy's `show-me` in its own `CREDITS.md`. My changes and my own skills (`afk`,
-`verdict`, `lanes`, `ask-dili`, `whiteboard-defense`) are MIT © Stefan Dili. `find-skills`
+`verdict`, `lanes`, `ask-dili`, `flow-map`, `whiteboard-defense`) are MIT © Stefan Dili. `find-skills`
 (vercel-labs) is not carried here, it stays installed through the `skills` CLI.

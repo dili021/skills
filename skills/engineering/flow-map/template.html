@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flow map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  flow-map template. Replace ONLY the JSON in the script element with id "flow" below.
+  Everything else (rendering, animation, tabs, progress, situations, decisions) is the same in every flow map.
+-->
+<script type="application/json" id="flow">
+{
+  "title": "Receipt scanner",
+  "titleAccent": "scanner",
+  "intro": "Follow one receipt from upload to a confirmed expense: browser, API, worker and the OCR service, then back. Pick a branch at each fork; the Decisions tab explains why the path looks the way it does.",
+  "lang": "en",
+  "start": "start",
+  "lanes": [
+    { "id": "web", "name": "User · Browser", "sub": "web/src/receipts" },
+    { "id": "api", "name": "API · Node", "sub": "api/src/receipts" },
+    { "id": "worker", "name": "Worker · Python", "sub": "worker/ocr" },
+    { "id": "ext", "name": "External", "sub": "OCR service", "height": 130 }
+  ],
+  "stations": {
+    "web_upload": { "lane": "web", "col": 0, "icon": "📤", "name": "Upload", "sub": "/receipts/new", "desc": "Screen where the user drops a receipt photo.", "code": ["web/src/receipts/upload.tsx"] },
+    "web_review": { "lane": "web", "col": 3, "icon": "🔍", "name": "Review", "sub": "/receipts/:id", "desc": "Extracted fields with confidence; the user confirms or corrects.", "code": ["web/src/receipts/review.tsx"] },
+    "api": { "lane": "api", "col": 0, "icon": "🚪", "name": "API", "sub": "/api/receipts", "desc": "Accepts uploads and serves receipts.", "code": ["api/src/receipts/routes.ts"] },
+    "queue": { "lane": "api", "col": 1.5, "icon": "📥", "name": "Queue", "sub": "jobs", "desc": "Jobs waiting for the worker.", "code": ["api/src/jobs.ts"] },
+    "db": { "lane": "api", "col": 4, "icon": "🗄️", "name": "Database", "sub": "Postgres", "desc": "Receipts, fields, decisions.", "code": ["api/migrations/"] },
+    "worker": { "lane": "worker", "col": 1.5, "icon": "🛠️", "name": "Worker", "sub": "ocr_job", "desc": "Reads a receipt and extracts fields.", "code": ["worker/ocr/job.py"] },
+    "ocr": { "lane": "ext", "col": 2.5, "icon": "👁️", "name": "OCR service", "sub": "vendor API", "desc": "Turns the image into text.", "code": ["worker/ocr/client.py"], "external": true }
+  },
+  "flags": {
+    "low_confidence_total": { "src": "worker", "text": "Total read with low confidence" }
+  },
+  "steps": {
+    "start": { "from": "web_upload", "to": "web_upload", "kind": "human", "mode": "human",
+      "title": "A receipt arrives", "text": "The user drops a photo of a receipt.",
+      "packet": { "file": "receipt-example.jpg", "size": "1.2 MB" },
+      "choices": [
+        { "label": "New receipt", "next": "upload" },
+        { "label": "The same photo again", "hint": "same bytes, second time", "next": "dup" }
+      ] },
+    "dup": { "from": "web_upload", "to": "api", "kind": "data", "mode": "sync", "edge": "POST receipts",
+      "title": "Same photo twice", "text": "The API hashes the bytes; a unique index on the hash rejects the second upload with 409.",
+      "packet": { "status": 409 }, "next": "upload" },
+    "upload": { "from": "web_upload", "to": "api", "kind": "data", "mode": "sync", "edge": "POST receipts",
+      "title": "POST /api/receipts", "text": "The photo goes up as multipart.",
+      "code": ["api/src/receipts/routes.ts"], "packet": { "file": "receipt-example.jpg" }, "next": "store" },
+    "store": { "from": "api", "to": "db", "kind": "data", "mode": "sync",
+      "title": "Stored before any OCR", "text": "The API writes the file and a receipt row in state pending, then answers 202.",
+      "packet": { "receipt": { "id": 7, "state": "pending" } }, "status": { "text": "pending", "tone": "warn" }, "next": "enqueue" },
+    "enqueue": { "from": "api", "to": "queue", "kind": "ctrl", "mode": "async",
+      "title": "Into the queue", "text": "The request is done; the work continues in the background.", "next": "pick" },
+    "pick": { "from": "queue", "to": "worker", "kind": "ctrl", "mode": "async",
+      "title": "Worker picks the job", "text": "One job at a time.", "next": "ocr_call" },
+    "ocr_call": { "from": "worker", "to": "ocr", "kind": "data", "mode": "sync", "edge": "image",
+      "title": "OCR call", "text": "The worker sends the image to the OCR service.",
+      "choices": [
+        { "label": "OCR answers", "next": "ocr_ok" },
+        { "label": "Total is blurry", "hint": "low confidence", "next": "ocr_blurry" }
+      ] },
+    "ocr_ok": { "from": "ocr", "to": "worker", "kind": "data", "mode": "sync", "edge": "text",
+      "title": "Text back", "text": "Every field reads cleanly.",
+      "packet": { "total": "42.10", "confidence": "high" }, "next": "save" },
+    "ocr_blurry": { "from": "ocr", "to": "worker", "kind": "data", "mode": "sync", "edge": "text",
+      "title": "Blurry total", "text": "The total comes back with low confidence, so the worker flags it.",
+      "packet": { "total": "42.1?", "confidence": "low" }, "flags": ["low_confidence_total"], "set": { "blurry": true }, "next": "save" },
+    "save": { "from": "worker", "to": "db", "kind": "data", "mode": "sync",
+      "title": "Fields saved", "text": "The worker writes the fields and marks the receipt extracted.",
+      "variants": [ { "if": "blurry", "text": "The worker writes the fields, the flag included, and marks the receipt extracted." } ],
+      "status": { "text": "extracted", "tone": "warn" }, "next": "review" },
+    "review": { "from": "api", "to": "web_review", "kind": "data", "mode": "sync", "edge": "GET receipts/7",
+      "title": "Review screen", "text": "The user sees the fields with their confidence.",
+      "choices": [
+        { "label": "Confirm", "next": "confirm" },
+        { "label": "Correct the total", "next": "correct" }
+      ] },
+    "confirm": { "from": "web_review", "to": "api", "kind": "data", "mode": "sync", "edge": "POST confirm",
+      "title": "Confirmed", "text": "The decision is stored with who and when.", "status": { "text": "confirmed", "tone": "ok" }, "next": "end" },
+    "correct": { "from": "web_review", "to": "api", "kind": "data", "mode": "sync", "edge": "POST correct",
+      "title": "Corrected", "text": "The corrected value replaces the extracted one; the flag clears.",
+      "packet": { "path": "total", "value": "42.10" }, "unflag": ["low_confidence_total"], "status": { "text": "confirmed", "tone": "ok" }, "next": "end" },
+    "end": { "from": "web_review", "to": "web_review", "kind": "human", "mode": "end", "end": true,
+      "title": "End of the path", "text": "The receipt is confirmed and counts toward the report." }
+  },
+  "situations": [
+    { "step": "dup", "title": "The same photo twice", "text": "The hash rejects the second upload." },
+    { "step": "ocr_blurry", "title": "A blurry total", "text": "Low confidence raises a flag the user must clear." }
+  ],
+  "decisions": [
+    { "id": "async", "part": "api", "title": "Accept now, read later", "src": "ADR 0002",
+      "decision": "The upload returns 202 and a worker reads the receipt in the background.",
+      "why": "OCR takes seconds and the vendor limits parallel calls.",
+      "plus": ["The user never waits on the upload screen"], "cost": ["The review screen has to poll"], "risk": ["A long queue at month end"],
+      "steps": ["store", "enqueue", "pick"] },
+    { "id": "hash", "part": "system", "title": "Duplicates by content hash", "src": "ticket 12",
+      "decision": "A unique index on the file hash rejects a second upload.",
+      "why": "Two copies of one receipt would double the expense.",
+      "plus": ["The database settles the race"], "cost": ["A re-photographed receipt has a new hash"], "risk": [],
+      "steps": ["dup", "upload"] }
+  ],
+  "ui": {}
+}
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eef1f4; --paper: #ffffff; --paper-2: #f7f8fa;
+    --ink: #161b26; --ink-2: #3b4556; --ink-3: #6a7485; --line: #dde2e8;
+    --accent: #D8232A; --accent-soft: #fbe4e5;
+    --data: #0b7a72; --data-soft: #d9f0ed;
+    --ctrl: #b86a00; --ctrl-soft: #fbecd2;
+    --human: #D8232A;
+    --good: #1f7a3a; --good-soft: #dff3e4;
+    --bad: #b42318; --bad-soft: #fde8e6;
+    --lane-0: #eceaf9; --lane-0-ink: #4b45a8;
+    --lane-1: #f8efe2; --lane-1-ink: #8a5a10;
+    --lane-2: #e5f2ea; --lane-2-ink: #2c6b40;
+    --lane-3: #ece8f0; --lane-3-ink: #6a4f7d;
+    --lane-4: #e3eef7; --lane-4-ink: #2a5a85;
+    --road: #c9d0d9; --station: #ffffff;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 10px 30px rgba(16,24,40,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0d1218; --paper: #151c24; --paper-2: #1a222c; --ink: #e8edf2; --ink-2: #b0bcc8; --ink-3: #7c8996;
+      --line: #28323d; --accent: #f0646b; --accent-soft: #3b1c1f;
+      --data: #45c2b6; --data-soft: #12332f; --ctrl: #f0a640; --ctrl-soft: #3a2a10; --human: #f0646b;
+      --good: #6fcf8a; --good-soft: #15301e; --bad: #f28b82; --bad-soft: #3a1a18;
+      --lane-0: #1b1a33; --lane-0-ink: #a9a4f0; --lane-1: #2a2112; --lane-1-ink: #e3b766;
+      --lane-2: #142519; --lane-2-ink: #86cf9b; --lane-3: #221a29; --lane-3-ink: #c4a6d8;
+      --lane-4: #12222f; --lane-4-ink: #8cc0ea;
+      --road: #34404c; --station: #19212b;
+      --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0d1218; --paper: #151c24; --paper-2: #1a222c; --ink: #e8edf2; --ink-2: #b0bcc8; --ink-3: #7c8996;
+    --line: #28323d; --accent: #f0646b; --accent-soft: #3b1c1f;
+    --data: #45c2b6; --data-soft: #12332f; --ctrl: #f0a640; --ctrl-soft: #3a2a10; --human: #f0646b;
+    --good: #6fcf8a; --good-soft: #15301e; --bad: #f28b82; --bad-soft: #3a1a18;
+    --lane-0: #1b1a33; --lane-0-ink: #a9a4f0; --lane-1: #2a2112; --lane-1-ink: #e3b766;
+    --lane-2: #142519; --lane-2-ink: #86cf9b; --lane-3: #221a29; --lane-3-ink: #c4a6d8;
+    --lane-4: #12222f; --lane-4-ink: #8cc0ea;
+    --road: #34404c; --station: #19212b;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif; font-size: 16px; line-height: 1.5; padding: 0 20px 48px; }
+  h1, h2, h3 { font-family: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif; margin: 0; line-height: 1.15; text-wrap: balance; }
+  code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  button { font: inherit; color: inherit; }
+  p, li, h2, h3, b, span { overflow-wrap: anywhere; }
+  .wrap { max-width: 1500px; margin: 0 auto; }
+
+  .top { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: end; justify-content: space-between; padding: 22px 0 14px; }
+  .top h1 { font-size: clamp(1.7rem, 3.4vw, 2.6rem); font-weight: 800; letter-spacing: -0.015em; }
+  .top h1 span { color: var(--accent); }
+  .top p { margin: 4px 0 0; color: var(--ink-3); max-width: 62ch; }
+  .hud { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  .hud-cell { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px; min-width: 110px; box-shadow: var(--shadow); }
+  .hud-cell .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 700; }
+  .hud-cell .v { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 20px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .hud-cell .v small { font-size: 13px; color: var(--ink-3); font-weight: 600; }
+  .meter { height: 4px; background: var(--line); border-radius: 4px; margin-top: 4px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .5s ease; }
+  .status-pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 14px; font-weight: 700; background: var(--paper-2); border: 1px solid var(--line); white-space: nowrap; }
+  .status-pill.warn { background: var(--ctrl-soft); color: var(--ctrl); border-color: transparent; }
+  .status-pill.bad { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .status-pill.ok { background: var(--good-soft); color: var(--good); border-color: transparent; }
+  .icon-btn { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; cursor: pointer; box-shadow: var(--shadow); font-weight: 600; font-size: 14px; color: var(--ink-2); min-height: 40px; }
+  .icon-btn:hover { border-color: var(--ink-3); }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tab { background: none; border: none; padding: 10px 14px; font-weight: 700; color: var(--ink-3); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; font-size: 15px; }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .tab .count { font-size: 12px; font-weight: 700; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; margin-left: 4px; color: var(--ink-3); }
+  [hidden] { display: none !important; }
+
+  .game { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 18px; align-items: start; }
+  @media (max-width: 1150px) { .game { grid-template-columns: minmax(0, 1fr); } }
+  .board { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 10px; position: relative; min-width: 0; }
+  .board svg { display: block; width: 100%; height: auto; }
+  .board-bar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; padding: 4px 6px 10px; font-size: 14px; color: var(--ink-2); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+  .legend label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .swatch { width: 26px; height: 0; border-top: 3px solid; display: inline-block; }
+  .swatch.data { border-color: var(--data); }
+  .swatch.ctrl { border-color: var(--ctrl); border-top-style: dashed; }
+  .swatch.human { width: 12px; height: 12px; border: 3px solid var(--human); border-radius: 50%; }
+  .hint { color: var(--ink-3); font-size: 13px; }
+  kbd { font-family: "JetBrains Mono", monospace; font-size: 11.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--paper-2); }
+
+  .lane-label { font: 700 12px "Source Sans 3", sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+  .lane-sub { font: 400 11px "JetBrains Mono", monospace; }
+  .road { fill: none; stroke: var(--road); stroke-width: 2; opacity: .55; transition: opacity .3s, stroke .3s; }
+  .road.ctrl { stroke-dasharray: 6 6; }
+  .road.trail.data { stroke: var(--data); opacity: .55; stroke-width: 2.5; }
+  .road.trail.ctrl { stroke: var(--ctrl); opacity: .55; stroke-width: 2.5; }
+  .road.live { opacity: 1; stroke-width: 4; }
+  .road.live.data { stroke: var(--data); stroke-dasharray: 10 8; animation: flow 0.8s linear infinite; }
+  .road.live.ctrl { stroke: var(--ctrl); stroke-dasharray: 6 7; animation: flow 0.8s linear infinite; }
+  .road.hidden-layer { opacity: 0 !important; }
+  @keyframes flow { to { stroke-dashoffset: -36; } }
+  .station { cursor: pointer; }
+  .station rect.body { fill: var(--station); stroke: var(--line); stroke-width: 1.5; transition: stroke .3s, fill .3s; }
+  .station .icon { font-size: 19px; }
+  .station .name { font: 700 13px "Source Sans 3", sans-serif; fill: var(--ink); }
+  .station .sub { font: 400 10px "JetBrains Mono", monospace; fill: var(--ink-3); }
+  .station.lit rect.body { stroke: var(--ink-3); }
+  .station.here rect.body { stroke: var(--accent); stroke-width: 3; }
+  .station.external rect.body { stroke-dasharray: 5 4; }
+  .station:hover rect.body { stroke: var(--ink-2); }
+  .station .visits { font: 700 10px "JetBrains Mono", monospace; fill: var(--ink-3); }
+  .ring { fill: none; stroke-width: 3; }
+  .ring.human { stroke: var(--human); } .ring.data { stroke: var(--data); } .ring.ctrl { stroke: var(--ctrl); }
+  .token-doc rect { fill: var(--paper); stroke: var(--data); stroke-width: 2.5; }
+  .token-doc line { stroke: var(--data); stroke-width: 2; }
+  .token-ctrl circle { fill: var(--ctrl); }
+  .token-glow { filter: drop-shadow(0 0 6px var(--ctrl)); }
+  .token-doc { filter: drop-shadow(0 0 5px var(--data)); }
+  .edge-label { font: 600 11px "JetBrains Mono", monospace; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+  .edge-label.data { fill: var(--data); } .edge-label.ctrl { fill: var(--ctrl); }
+
+  .panel { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 12px; min-width: 0; }
+  @media (max-width: 1150px) { .panel { position: static; } }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; min-width: 0; }
+  .step-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .tag { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px; background: var(--paper-2); color: var(--ink-2); border: 1px solid var(--line); white-space: nowrap; }
+  .tag.data { background: var(--data-soft); color: var(--data); border-color: transparent; }
+  .tag.ctrl { background: var(--ctrl-soft); color: var(--ctrl); border-color: transparent; }
+  .tag.human { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .tag.p0 { background: var(--lane-0); color: var(--lane-0-ink); border-color: transparent; }
+  .tag.p1 { background: var(--lane-1); color: var(--lane-1-ink); border-color: transparent; }
+  .tag.p2 { background: var(--lane-2); color: var(--lane-2-ink); border-color: transparent; }
+  .tag.p3 { background: var(--lane-3); color: var(--lane-3-ink); border-color: transparent; }
+  .tag.p4 { background: var(--lane-4); color: var(--lane-4-ink); border-color: transparent; }
+  .step-no { margin-left: auto; font-size: 12px; color: var(--ink-3); font-family: "JetBrains Mono", monospace; }
+  .card h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+  .route { font-size: 13.5px; color: var(--ink-3); margin-bottom: 10px; }
+  .route b { color: var(--ink-2); }
+  .card p { margin: 0 0 12px; color: var(--ink-2); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; min-width: 0; }
+  .chip { font: 400 11.5px "JetBrains Mono", monospace; background: var(--paper-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; color: var(--ink-2); overflow-wrap: anywhere; max-width: 100%; }
+  details.packet { border: 1px solid var(--line); border-radius: 12px; background: var(--paper-2); margin-bottom: 14px; min-width: 0; }
+  details.packet summary { cursor: pointer; padding: 7px 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); list-style: none; display: flex; gap: 8px; align-items: center; }
+  details.packet summary::before { content: "▸"; transition: transform .2s; }
+  details.packet[open] summary::before { transform: rotate(90deg); }
+  details.packet pre { margin: 0; padding: 0 12px 12px; font-size: 12px; line-height: 1.5; max-height: 300px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .j-key { color: var(--lane-0-ink); } .j-str { color: var(--data); } .j-num { color: var(--ctrl); } .j-lit { color: var(--accent); }
+  .step-decisions { border-top: 1px solid var(--line); padding-top: 12px; margin: 4px 0 14px; }
+  .step-decisions .side-title { margin-bottom: 6px; }
+  .dec-link { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; background: none; border: none; padding: 5px 0; cursor: pointer; color: var(--ink-2); font-size: 14.5px; }
+  .dec-link:hover b { color: var(--accent); }
+  .dec-link .arrow { color: var(--ink-3); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn { border: 1px solid var(--line); background: var(--paper); border-radius: 12px; padding: 9px 14px; font-weight: 700; cursor: pointer; transition: transform .1s, border-color .2s, background .2s; }
+  .btn:hover { border-color: var(--ink-3); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.small { padding: 5px 10px; font-size: 13.5px; border-radius: 10px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .choices { display: grid; gap: 8px; margin-bottom: 4px; }
+  .choice { text-align: left; border: 2px solid var(--line); background: var(--paper); border-radius: 14px; padding: 10px 14px; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: center; transition: border-color .2s, transform .1s; }
+  .choice:hover { border-color: var(--accent); }
+  .choice .num { grid-row: span 2; font: 700 12px "JetBrains Mono", monospace; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--ink-3); }
+  .choice .lbl { font-weight: 700; }
+  .choice .hint2 { font-size: 13px; color: var(--ink-3); }
+  .auto { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink-2); margin-left: auto; cursor: pointer; user-select: none; }
+
+  .side-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
+  .flags { display: grid; gap: 6px; }
+  .flag { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; align-items: start; font-size: 14px; padding: 6px 10px; border-radius: 10px; background: var(--paper-2); border: 1px solid var(--line); animation: pop .4s ease; }
+  .flag .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ctrl); margin-top: 6px; }
+  .flag code { font-size: 12px; color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+  .flag span { color: var(--ink-3); font-size: 13px; }
+  .flag.gone { opacity: .5; text-decoration: line-through; }
+  .empty { color: var(--ink-3); font-size: 14px; }
+  @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .bottom { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; margin-top: 18px; }
+  @media (max-width: 900px) { .bottom { grid-template-columns: minmax(0, 1fr); } }
+  .sit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .sit { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--paper-2); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .sit.seen { background: var(--paper); border-color: var(--ink-3); }
+  .sit-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .sit b { font-size: 14.5px; }
+  .sit .seen-mark { font-size: 12px; font-weight: 700; color: var(--good); white-space: nowrap; }
+  .sit small { color: var(--ink-3); font-size: 13px; line-height: 1.35; flex: 1; }
+  .sit .btn { align-self: flex-start; }
+  .branch-list { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 14.5px; }
+  .branch-list li { margin-bottom: 3px; }
+  .branch-list .done { color: var(--ink-3); text-decoration: line-through; }
+
+  .dec-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .filter { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 5px 12px; font-weight: 700; font-size: 13.5px; cursor: pointer; color: var(--ink-2); }
+  .filter[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .dec-intro { color: var(--ink-2); max-width: 80ch; margin: 0 0 14px; }
+  .dec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 14px; }
+  .dec { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; scroll-margin-top: 12px; }
+  .dec.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .dec-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 8px; }
+  .dec h3 { font-size: 1.15rem; flex: 1 1 100%; }
+  .dec .src { font: 400 11.5px "JetBrains Mono", monospace; color: var(--ink-3); }
+  .dec p { margin: 0 0 8px; color: var(--ink-2); font-size: 15px; }
+  .dec p b { color: var(--ink); }
+  .tradeoffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0; }
+  @media (max-width: 640px) { .tradeoffs { grid-template-columns: minmax(0, 1fr); } }
+  .to { border-radius: 12px; padding: 8px 10px; font-size: 13.5px; min-width: 0; }
+  .to h4 { margin: 0 0 4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; }
+  .to ul { margin: 0; padding-left: 16px; }
+  .to li { margin-bottom: 3px; color: var(--ink-2); }
+  .to.plus { background: var(--good-soft); } .to.plus h4 { color: var(--good); }
+  .to.cost { background: var(--ctrl-soft); } .to.cost h4 { color: var(--ctrl); }
+  .to.risk { background: var(--bad-soft); } .to.risk h4 { color: var(--bad); }
+  .dec-steps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-3); }
+  .step-chip { border: 1px solid var(--line); background: var(--paper-2); border-radius: 8px; padding: 2px 8px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); }
+  .step-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 30; max-width: min(360px, calc(100vw - 32px)); }
+  .toast { background: var(--ink); color: var(--paper); border-radius: 14px; padding: 10px 14px; box-shadow: var(--shadow); display: flex; gap: 10px; align-items: center; animation: slide .35s ease; font-size: 14.5px; min-width: 0; }
+  .toast b { display: block; }
+  .toast div { min-width: 0; overflow-wrap: anywhere; }
+  @keyframes slide { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .overlay { position: fixed; inset: 0; background: rgba(10, 14, 20, .55); display: none; align-items: center; justify-content: center; z-index: 40; padding: 16px; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--paper); border-radius: 20px; max-width: 620px; width: 100%; padding: 24px; box-shadow: var(--shadow); max-height: calc(100vh - 32px); overflow: auto; }
+  .modal h2 { font-size: 1.7rem; margin-bottom: 6px; }
+  .modal .dec { box-shadow: none; border: none; padding: 0; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+  .stats div { background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+  .stats b { font: 800 24px "Bricolage Grotesque", sans-serif; display: block; }
+  .stats span { font-size: 12px; color: var(--ink-3); }
+
+  @media (max-width: 640px) {
+    body { padding: 0 16px 40px; font-size: 15.5px; }
+    .hud-cell { min-width: 0; flex: 1 1 40%; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .card { padding: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .road.live.data, .road.live.ctrl { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><h1 id="title"></h1><p id="intro"></p></div>
+    <div class="hud" aria-live="polite">
+      <div class="hud-cell"><div class="k" data-ui="progress"></div><div class="v" id="hud-progress"></div><div class="meter"><i id="hud-meter"></i></div></div>
+      <div class="hud-cell"><div class="k" data-ui="situations"></div><div class="v" id="hud-sit"></div></div>
+      <div class="hud-cell"><div class="k" data-ui="status"></div><div class="v"><span class="status-pill" id="hud-status"></span></div></div>
+      <button class="icon-btn" id="theme-btn" data-ui="theme"></button>
+      <button class="icon-btn" id="reset-btn" data-ui="reset"></button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-map" aria-selected="true" aria-controls="view-map" data-ui="tabMap"></button>
+    <button class="tab" role="tab" id="tab-dec" aria-selected="false" aria-controls="view-dec"><span data-ui="tabDecisions"></span> <span class="count" id="dec-total"></span></button>
+  </nav>
+
+  <div id="view-map" role="tabpanel" aria-labelledby="tab-map">
+    <main class="game">
+      <section class="board">
+        <div class="board-bar">
+          <div class="legend">
+            <label><input type="checkbox" id="layer-data" checked> <span class="swatch data"></span> <span data-ui="layerData"></span></label>
+            <label><input type="checkbox" id="layer-ctrl" checked> <span class="swatch ctrl"></span> <span data-ui="layerCtrl"></span></label>
+            <span><span class="swatch human"></span> <span data-ui="layerHuman"></span></span>
+          </div>
+          <div class="hint" id="keys-hint"></div>
+        </div>
+        <svg id="map" role="img"></svg>
+      </section>
+      <aside class="panel">
+        <div class="card" id="step-card"></div>
+        <div class="card">
+          <div class="side-title"><span data-ui="flagsTitle"></span><span id="flag-count"></span></div>
+          <div class="flags" id="run-flags"></div>
+        </div>
+      </aside>
+    </main>
+    <section class="bottom">
+      <div class="card">
+        <div class="side-title"><span data-ui="situations"></span><span id="sit-count"></span></div>
+        <div class="sit-grid" id="sit-grid"></div>
+      </div>
+      <div class="card">
+        <div class="side-title"><span data-ui="branches"></span><span id="branch-count"></span></div>
+        <ul class="branch-list" id="branch-list"></ul>
+      </div>
+    </section>
+  </div>
+
+  <div id="view-dec" role="tabpanel" aria-labelledby="tab-dec" hidden>
+    <p class="dec-intro" data-ui="decIntro"></p>
+    <div class="dec-bar" id="dec-filters"></div>
+    <div class="dec-grid" id="dec-grid"></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+(() => {
+'use strict';
+const DATA = JSON.parse(document.getElementById('flow').textContent);
+
+/* ---------- UI text (the JSON "ui" block overrides any key) ---------- */
+const UI = Object.assign({
+  progress: 'Progress', situations: 'Situations', status: 'State', statusInitial: 'none yet',
+  theme: 'Theme', reset: 'Reset progress', resetConfirm: 'Clear progress and seen situations?',
+  tabMap: 'Map', tabDecisions: 'Decisions',
+  layerData: 'data (the packet moves)', layerCtrl: 'control (who hands off to whom)', layerHuman: 'human decision',
+  keysHint: '<kbd>→</kbd>/<kbd>space</kbd> next · <kbd>←</kbd> back · <kbd>1</kbd>–<kbd>4</kbd> choose · click a station for details',
+  flagsTitle: 'Flags raised on this path', flagsEmpty: 'None yet.', flagsActive: '{n} active', flagCleared: 'cleared later',
+  situationsSeen: '{n} of {m} seen', seen: '✓ seen', play: 'Play',
+  branches: 'Branches', branchesCount: '{n} of {m}',
+  decIntro: 'Why the system is built this way: each decision with its reason, what we get, what we pay, what can go wrong, and its source. Click a step to open it on the map.',
+  all: 'All', systemPart: 'Whole system',
+  decision: 'Decision.', why: 'Why.', plus: 'We get', cost: 'We pay', risk: 'Risk', noneKnown: 'none known', onSteps: 'On steps:',
+  stepDecisions: 'Decisions behind this step',
+  kindData: 'Data', kindCtrl: 'Control', kindHuman: 'Human decision',
+  atStation: 'at', step: 'step', stepCountTitle: 'm is the path length to the end if the first branch is taken from here on',
+  packet: 'Packet at this step', back: '← Back', next: 'Next →', restart: 'Restart ↻', auto: 'auto',
+  newFlag: 'New flag',
+  endTitle: 'Reached the end', endState: 'State:', statSteps: 'steps on this path', statFlags: 'flags left', statProgress: 'progress on the map',
+  unseen: 'Situations not seen yet ({n}):', allSeen: 'You have seen every situation.',
+  close: 'Close', backToMap: 'Back to map', stationSteps: 'Steps through this station: {n}, seen {m}.',
+  decBack: 'Back', decAll: 'All decisions',
+}, DATA.ui || {});
+const fmt = (s, o) => s.replace(/\{(\w+)\}/g, (m, k) => o[k]);
+document.documentElement.lang = DATA.lang || 'en';
+document.title = DATA.title;
+document.querySelectorAll('[data-ui]').forEach(n => { n.textContent = UI[n.dataset.ui]; });
+document.getElementById('keys-hint').innerHTML = UI.keysHint;
+const titleEl = document.getElementById('title');
+const acc = DATA.titleAccent && DATA.title.lastIndexOf(DATA.titleAccent);
+if (acc !== undefined && acc >= 0) {
+  titleEl.append(DATA.title.slice(0, acc));
+  const sp = document.createElement('span'); sp.textContent = DATA.titleAccent; titleEl.append(sp, DATA.title.slice(acc + DATA.titleAccent.length));
+} else titleEl.textContent = DATA.title;
+document.getElementById('intro').textContent = DATA.intro || '';
+
+/* ---------- Layout: lanes stacked, stations by lane and column ---------- */
+const VW = 1260, SW = 148, SH = 60, GAP = 25, TOP = 20;
+let y = TOP;
+const LANES = DATA.lanes.map((l, i) => { const h = l.height || 190; const o = Object.assign({}, l, { top: y, h, idx: i % 5 }); y += h + GAP; return o; });
+const VH = y - GAP + 10;
+const laneById = Object.fromEntries(LANES.map(l => [l.id, l]));
+const maxCol = Math.max(1, ...Object.values(DATA.stations).map(s => s.col || 0));
+const ST = {};
+for (const [id, s] of Object.entries(DATA.stations)) {
+  const l = laneById[s.lane];
+  ST[id] = Object.assign({}, s, { x: 90 + (s.col || 0) * (VW - 180) / maxCol, y: l.top + l.h / 2 + (s.dy || 0), code: s.code || [] });
+}
+const S = DATA.steps;
+const START = DATA.start || Object.keys(S)[0];
+const FLAGS = DATA.flags || {};
+const SITUATIONS = DATA.situations || [];
+const DECISIONS = DATA.decisions || [];
+const PARTS = Object.fromEntries(LANES.map(l => [l.id, { name: l.short || l.name.split(' · ')[0], cls: 'p' + l.idx }]));
+PARTS.system = { name: UI.systemPart, cls: 'p' + (LANES.length % 5) };
+const DEC_BY_STEP = {};
+DECISIONS.forEach(d => d.steps.forEach(s => (DEC_BY_STEP[s] = DEC_BY_STEP[s] || []).push(d)));
+const COUNTABLE = Object.keys(S).filter(k => !S[k].end);
+const VARS = [...new Set(Object.values(S).flatMap(s => Object.keys(s.set || {})))];
+
+/* ---------- Conditions and per-path state ---------- */
+const cond = (c, ctx) => c === undefined ? true : Array.isArray(c) ? c.every(x => cond(x, ctx)) : c[0] === '!' ? !ctx[c.slice(1)] : !!ctx[c];
+function field(step, name, ctx) {
+  for (const v of step.variants || []) if (cond(v.if, ctx) && v[name] !== undefined) return v[name];
+  return step[name];
+}
+function ctxOf(hist) {
+  const ctx = { flags: new Set(), gone: new Set(), status: null };
+  for (const id of hist) {
+    const s = S[id];
+    if (s.set) Object.assign(ctx, s.set);
+    (s.flags || []).forEach(f => {
+      const code = typeof f === 'string' ? f : f.code;
+      if (typeof f === 'string' || cond(f.if, ctx)) { ctx.flags.add(code); ctx.gone.delete(code); }
+    });
+    (s.unflag || []).forEach(f => { if (ctx.flags.has(f)) { ctx.flags.delete(f); ctx.gone.add(f); } });
+    const st = field(s, 'status', ctx);
+    if (st) ctx.status = typeof st === 'string' ? { text: st } : st;
+  }
+  return ctx;
+}
+function nextOf(step, ctx) {
+  const n = field(step, 'next', ctx);
+  if (!n) return null;
+  return typeof n === 'string' ? n : (cond(n.if, ctx) ? n.then : n.else);
+}
+const nextsOf = hist => {
+  const s = S[hist[hist.length - 1]];
+  if (s.choices) return s.choices.map(c => c.next);
+  const n = nextOf(s, ctxOf(hist));
+  return n ? [n] : [];
+};
+function pathLength(hist) {
+  const h = hist.slice();
+  for (let g = 0; g < 300 && !S[h[h.length - 1]].end; g++) { const n = nextsOf(h)[0]; if (!n) break; h.push(n); }
+  return h.length;
+}
+function pathTo(target) {
+  const key = h => { const c = ctxOf(h); return h[h.length - 1] + '|' + VARS.map(k => c[k] ? 1 : 0).join(''); };
+  const seen = new Set(), q = [[START]];
+  while (q.length) {
+    const h = q.shift();
+    if (h[h.length - 1] === target) return h;
+    const k = key(h); if (seen.has(k)) continue; seen.add(k);
+    nextsOf(h).forEach(n => q.push(h.concat(n)));
+  }
+  return null;
+}
+
+/* ---------- Saved progress (a convenience; the page works without it) ---------- */
+const KEY = 'flow-map:' + (DATA.storageKey || DATA.title);
+let save = { visited: [], choices: [] };
+try { const raw = localStorage.getItem(KEY); if (raw) save = Object.assign(save, JSON.parse(raw)); } catch (e) {}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+const visited = new Set(save.visited);
+const choicesTaken = new Set(save.choices);
+let history = [];
+let auto = false, autoTimer = null, animating = false;
+
+/* ---------- SVG ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('map');
+svg.setAttribute('viewBox', `0 0 ${VW} ${VH}`);
+svg.setAttribute('aria-label', DATA.title);
+const el = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const gLanes = el('g', {}, svg), gRoads = el('g', {}, svg), gStations = el('g', {}, svg), gFx = el('g', {}, svg);
+
+function edgeD(a, b) {
+  const A = ST[a], B = ST[b];
+  const sign = a < b ? 1 : -1;
+  if (Math.abs(A.y - B.y) < 30) {
+    const k = Math.min(72, 36 + Math.abs(B.x - A.x) * 0.12) * sign;
+    const yA = A.y - 30 * sign, yB = B.y - 30 * sign;
+    return `M ${A.x} ${yA} C ${A.x} ${yA - k}, ${B.x} ${yB - k}, ${B.x} ${yB}`;
+  }
+  const off = 7 * sign, ax = A.x + off, bx = B.x + off, my = (A.y + B.y) / 2;
+  return `M ${ax} ${A.y} C ${ax} ${my}, ${bx} ${my}, ${bx} ${B.y}`;
+}
+const roads = {};
+const roadKey = (a, b) => a + '>' + b;
+const fitTargets = [];
+
+function buildMap() {
+  LANES.forEach(l => {
+    el('rect', { x: 4, y: l.top, width: VW - 8, height: l.h, rx: 16, fill: `var(--lane-${l.idx})` }, gLanes);
+    const t = el('text', { x: 20, y: l.top + 20, class: 'lane-label', fill: `var(--lane-${l.idx}-ink)` }, gLanes); t.textContent = l.name;
+    const s = el('text', { x: 20, y: l.top + 36, class: 'lane-sub', fill: `var(--lane-${l.idx}-ink)`, opacity: .75 }, gLanes); s.textContent = l.sub || '';
+    fitTargets.push([t, 250], [s, 250]);
+  });
+  for (const s of Object.values(S)) {
+    if (s.from === s.to) continue;
+    const k = roadKey(s.from, s.to);
+    if (roads[k]) continue;
+    const kind = s.kind === 'ctrl' ? 'ctrl' : 'data';
+    roads[k] = { path: el('path', { d: edgeD(s.from, s.to), class: `road ${kind}` }, gRoads), kind };
+  }
+  for (const [id, s] of Object.entries(ST)) {
+    const g = el('g', { class: 'station' + (s.external ? ' external' : ''), transform: `translate(${s.x - SW / 2} ${s.y - SH / 2})`, tabindex: 0, role: 'button', 'aria-label': s.name }, gStations);
+    el('rect', { class: 'body', width: SW, height: SH, rx: 13 }, g);
+    const ic = el('text', { x: 11, y: 37, class: 'icon' }, g); ic.textContent = s.icon || '•';
+    const nm = el('text', { x: 40, y: 27, class: 'name' }, g); nm.textContent = s.name;
+    const sb = el('text', { x: 40, y: 44, class: 'sub' }, g); sb.textContent = s.sub || '';
+    const vc = el('text', { x: SW - 8, y: 13, class: 'visits', 'text-anchor': 'end' }, g);
+    fitTargets.push([nm, SW - 50], [sb, SW - 48]);
+    s.g = g; s.vc = vc;
+    const open = () => showStation(id);
+    g.addEventListener('click', open);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+  }
+}
+// Text longer than its slot is squeezed into the slot instead of spilling out of the box.
+function fitTexts() {
+  fitTargets.forEach(([t, max]) => {
+    t.removeAttribute('textLength'); t.removeAttribute('lengthAdjust');
+    let w = 0; try { w = t.getComputedTextLength(); } catch (e) {}
+    if (w > max) { t.setAttribute('textLength', max); t.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
+  });
+}
+
+function animateStep(step, done) {
+  const kind = step.kind === 'ctrl' ? 'ctrl' : step.kind === 'data' ? 'data' : 'human';
+  gFx.innerHTML = '';
+  if (step.from === step.to) {
+    const S0 = ST[step.to];
+    const ring = el('rect', { x: S0.x - SW / 2 - 4, y: S0.y - SH / 2 - 4, width: SW + 8, height: SH + 8, rx: 16, class: `ring ${kind}` }, gFx);
+    if (ring.animate) ring.animate([{ opacity: 1 }, { opacity: 0.15 }, { opacity: 1 }], { duration: 1400, iterations: Infinity });
+    const g = makeToken('data'); g.setAttribute('transform', `translate(${S0.x + SW / 2 - 12} ${S0.y - SH / 2})`); gFx.appendChild(g);
+    done(); return;
+  }
+  const road = roads[roadKey(step.from, step.to)];
+  const path = road.path, len = path.getTotalLength();
+  if (step.edge) {
+    const mid = path.getPointAtLength(len / 2);
+    const lbl = el('text', { x: mid.x, y: mid.y - 8, class: `edge-label ${road.kind}`, 'text-anchor': 'middle' }, gFx);
+    lbl.textContent = step.edge;
+  }
+  const token = makeToken(kind);
+  gFx.appendChild(token);
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dur = reduce ? 1 : Math.min(1300, 500 + len * 0.9);
+  const t0 = performance.now();
+  animating = true;
+  const tick = now => {
+    const t = Math.min(1, (now - t0) / dur);
+    const e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const p = path.getPointAtLength(len * e);
+    token.setAttribute('transform', `translate(${p.x} ${p.y})`);
+    if (t < 1) requestAnimationFrame(tick); else { animating = false; done(); }
+  };
+  requestAnimationFrame(tick);
+}
+function makeToken(kind) {
+  const g = document.createElementNS(NS, 'g');
+  if (kind === 'data') {
+    g.setAttribute('class', 'token-doc');
+    el('rect', { x: -10, y: -13, width: 20, height: 26, rx: 3 }, g);
+    el('line', { x1: -5, y1: -6, x2: 5, y2: -6 }, g); el('line', { x1: -5, y1: 0, x2: 5, y2: 0 }, g); el('line', { x1: -5, y1: 6, x2: 2, y2: 6 }, g);
+  } else {
+    g.setAttribute('class', 'token-ctrl token-glow');
+    el('circle', { r: 9 }, g);
+    const t = el('text', { 'text-anchor': 'middle', y: 4, 'font-size': 11, fill: '#fff', 'font-weight': 800 }, g); t.textContent = '⚡';
+  }
+  return g;
+}
+
+const layer = { data: true, ctrl: true };
+function paintMap() {
+  const step = S[history[history.length - 1]];
+  const lit = new Set(), trail = new Set(), counts = {};
+  history.forEach(id => { const s = S[id]; lit.add(s.from); lit.add(s.to); counts[s.to] = (counts[s.to] || 0) + 1; if (s.from !== s.to) trail.add(roadKey(s.from, s.to)); });
+  for (const [k, r] of Object.entries(roads)) {
+    r.path.classList.toggle('trail', trail.has(k));
+    r.path.classList.toggle('live', step.from !== step.to && k === roadKey(step.from, step.to));
+    r.path.classList.toggle('hidden-layer', (r.kind === 'data' && !layer.data) || (r.kind === 'ctrl' && !layer.ctrl));
+  }
+  for (const [id, s] of Object.entries(ST)) {
+    s.g.classList.toggle('lit', lit.has(id));
+    s.g.classList.toggle('here', id === step.to);
+    s.vc.textContent = counts[id] ? '×' + counts[id] : '';
+  }
+}
+
+/* ---------- Step panel ---------- */
+const card = document.getElementById('step-card');
+const KIND = { data: UI.kindData, ctrl: UI.kindCtrl, human: UI.kindHuman };
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function jsonHtml(obj) {
+  const s = esc(JSON.stringify(obj, null, 2));
+  return s.replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(-?\d+(?:\.\d+)?)\b|\b(true|false|null)\b/g, (m, str, colon, num, lit) => {
+    if (str) return colon ? `<span class="j-key">${str}</span>${colon}` : `<span class="j-str">${str}</span>`;
+    if (num) return `<span class="j-num">${num}</span>`;
+    return `<span class="j-lit">${lit}</span>`;
+  });
+}
+const partTag = p => { const x = PARTS[p] || PARTS.system; return `<span class="tag ${x.cls}">${esc(x.name)}</span>`; };
+
+function renderStep() {
+  const id = history[history.length - 1];
+  const step = S[id];
+  const ctx = ctxOf(history);
+  const from = ST[step.from], to = ST[step.to];
+  let html = `<div class="step-meta"><span class="tag ${step.kind}">${esc(KIND[step.kind])}</span>`;
+  if (step.mode) html += `<span class="tag">${esc(step.mode)}</span>`;
+  html += `<span class="step-no" title="${esc(UI.stepCountTitle)}">${esc(UI.step)} ${history.length}/${pathLength(history)}</span></div>`;
+  html += `<h2>${esc(field(step, 'title', ctx))}</h2>`;
+  html += step.from === step.to
+    ? `<div class="route">${esc(UI.atStation)} <b>${esc(to.name)}</b></div>`
+    : `<div class="route"><b>${esc(from.name)}</b> → <b>${esc(to.name)}</b></div>`;
+  html += `<p>${esc(field(step, 'text', ctx) || '')}</p>`;
+  if (step.code) html += `<div class="chips">${step.code.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>`;
+  const packet = field(step, 'packet', ctx);
+  if (packet !== undefined) html += `<details class="packet" open><summary>${esc(UI.packet)}</summary><pre>${jsonHtml(packet)}</pre></details>`;
+  const decs = DEC_BY_STEP[id] || [];
+  if (decs.length) {
+    html += `<div class="step-decisions"><div class="side-title"><span>${esc(UI.stepDecisions)}</span><span>${decs.length}</span></div>`;
+    html += decs.map(d => `<button class="dec-link" data-dec="${esc(d.id)}"><span class="arrow">↗</span><span><b>${esc(d.title)}</b> ${partTag(d.part)}</span></button>`).join('');
+    html += `</div>`;
+  }
+  if (step.choices) {
+    html += `<div class="choices">` + step.choices.map((c, i) =>
+      `<button class="choice" data-choice="${i}"><span class="num">${i + 1}</span><span class="lbl">${esc(c.label)}</span>${c.hint ? `<span class="hint2">${esc(c.hint)}</span>` : ''}</button>`).join('') + `</div>`;
+  }
+  html += `<div class="actions" style="margin-top:12px"><button class="btn" id="btn-back" ${history.length < 2 ? 'disabled' : ''}>${esc(UI.back)}</button>`;
+  if (step.end) html += `<button class="btn primary" id="btn-again">${esc(UI.restart)}</button>`;
+  else if (!step.choices) html += `<button class="btn primary" id="btn-next">${esc(UI.next)}</button>`;
+  html += `<label class="auto"><input type="checkbox" id="auto" ${auto ? 'checked' : ''}> ${esc(UI.auto)}</label></div>`;
+  card.innerHTML = html;
+  card.querySelectorAll('[data-choice]').forEach(b => b.addEventListener('click', () => choose(+b.dataset.choice)));
+  card.querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => showDecision(b.dataset.dec)));
+  const bn = card.querySelector('#btn-next'); if (bn) bn.addEventListener('click', next);
+  const bb = card.querySelector('#btn-back'); if (bb) bb.addEventListener('click', back);
+  const ba = card.querySelector('#btn-again'); if (ba) ba.addEventListener('click', restart);
+  card.querySelector('#auto').addEventListener('change', e => { auto = e.target.checked; scheduleAuto(); });
+  renderFlags(ctx);
+  renderHud(ctx);
+}
+
+function renderFlags(ctx) {
+  const box = document.getElementById('run-flags');
+  const all = [...ctx.flags, ...ctx.gone];
+  document.getElementById('flag-count').textContent = ctx.flags.size ? fmt(UI.flagsActive, { n: ctx.flags.size }) : '';
+  if (!all.length) { box.innerHTML = `<div class="empty">${esc(UI.flagsEmpty)}</div>`; return; }
+  box.innerHTML = all.map(f => {
+    const d = FLAGS[f] || { text: '', src: '' };
+    return `<div class="flag ${ctx.gone.has(f) ? 'gone' : ''}"><i class="dot"></i><div><code>${esc(f)}</code><br><span>${esc(d.text)}${d.src ? ' · ' + esc(d.src) : ''}${ctx.gone.has(f) ? ' · ' + esc(UI.flagCleared) : ''}</span></div></div>`;
+  }).join('');
+}
+const progressPct = () => Math.round(100 * COUNTABLE.filter(k => visited.has(k)).length / COUNTABLE.length);
+const seenSituations = () => SITUATIONS.filter(s => visited.has(s.step)).length;
+function statusPill(node, st) {
+  node.textContent = st ? st.text : UI.statusInitial;
+  node.className = 'status-pill ' + (st && st.tone ? st.tone : '');
+}
+function renderHud(ctx) {
+  const pct = progressPct();
+  document.getElementById('hud-progress').innerHTML = `${pct}<small>%</small>`;
+  document.getElementById('hud-meter').style.width = pct + '%';
+  document.getElementById('hud-sit').innerHTML = `${seenSituations()}<small>/${SITUATIONS.length}</small>`;
+  statusPill(document.getElementById('hud-status'), ctx.status);
+  renderSituations(); renderBranches();
+}
+function renderSituations() {
+  document.getElementById('sit-count').textContent = fmt(UI.situationsSeen, { n: seenSituations(), m: SITUATIONS.length });
+  const grid = document.getElementById('sit-grid');
+  grid.innerHTML = SITUATIONS.map((s, i) => {
+    const seen = visited.has(s.step);
+    return `<div class="sit ${seen ? 'seen' : ''}"><div class="sit-head"><b>${esc(s.title)}</b>${seen ? `<span class="seen-mark">${esc(UI.seen)}</span>` : ''}</div><small>${esc(s.text)}</small><button class="btn small" data-sit="${i}">${esc(UI.play)}</button></div>`;
+  }).join('');
+  grid.querySelectorAll('[data-sit]').forEach(b => b.addEventListener('click', () => {
+    jumpTo(SITUATIONS[+b.dataset.sit].step);
+    document.querySelector('.game').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+}
+function renderBranches() {
+  const items = [];
+  for (const [id, s] of Object.entries(S)) {
+    if (!s.choices || s.choices.length < 2) continue;
+    s.choices.forEach(c => items.push({ at: s.title, label: c.label, done: choicesTaken.has(id + '>' + c.next) }));
+  }
+  document.getElementById('branch-count').textContent = fmt(UI.branchesCount, { n: items.filter(i => i.done).length, m: items.length });
+  document.getElementById('branch-list').innerHTML = items.map(i => `<li class="${i.done ? 'done' : ''}">${esc(i.at)}: ${esc(i.label)}</li>`).join('');
+}
+
+/* ---------- Moving through the flow ---------- */
+function enter(id) {
+  clearTimeout(autoTimer);
+  history.push(id);
+  const step = S[id];
+  visited.add(id); save.visited = [...visited]; persist();
+  const ctx = ctxOf(history), prev = ctxOf(history.slice(0, -1));
+  const newFlags = [...ctx.flags].filter(f => !prev.flags.has(f));
+  paintMap(); renderStep();
+  animateStep(step, () => {
+    newFlags.forEach(f => toast(UI.newFlag, f));
+    if (step.end) setTimeout(finish, 500);
+    scheduleAuto();
+  });
+}
+function next() {
+  if (animating) return;
+  const step = S[history[history.length - 1]];
+  if (step.choices || step.end) return;
+  const n = nextOf(step, ctxOf(history));
+  if (n) enter(n);
+}
+function choose(i) {
+  if (animating) return;
+  const id = history[history.length - 1];
+  const c = (S[id].choices || [])[i];
+  if (!c) return;
+  choicesTaken.add(id + '>' + c.next); save.choices = [...choicesTaken];
+  enter(c.next);
+}
+function back() {
+  if (animating || history.length < 2) return;
+  clearTimeout(autoTimer);
+  history.pop();
+  paintMap(); renderStep();
+  animateStep(S[history[history.length - 1]], () => {});
+}
+function restart() { closeModal(); history = []; enter(START); }
+function jumpTo(target) {
+  const path = pathTo(target);
+  if (!path) return;
+  closeModal(); showTab('map');
+  animating = false;
+  history = path.slice(0, -1);
+  enter(target);
+}
+function scheduleAuto() {
+  clearTimeout(autoTimer);
+  if (!auto) return;
+  const step = S[history[history.length - 1]];
+  if (step.choices || step.end) return;
+  autoTimer = setTimeout(next, 2600);
+}
+function toast(title, sub) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span>🚩</span><div><b>${esc(title)}</b>${esc(sub)}</div>`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = 0; setTimeout(() => t.remove(), 400); }, 3200);
+}
+
+/* ---------- Modals ---------- */
+const overlay = document.getElementById('overlay'), modal = document.getElementById('modal');
+function openModal(html) { modal.innerHTML = html; overlay.classList.add('open'); }
+function closeModal() { overlay.classList.remove('open'); }
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+function finish() {
+  const ctx = ctxOf(history);
+  const unseen = SITUATIONS.filter(s => !visited.has(s.step));
+  openModal(`<h2>${esc(UI.endTitle)}</h2>
+    <p style="color:var(--ink-2)">${esc(UI.endState)} <span class="status-pill" id="end-status"></span></p>
+    <div class="stats">
+      <div><b>${history.length}</b><span>${esc(UI.statSteps)}</span></div>
+      <div><b>${ctx.flags.size}</b><span>${esc(UI.statFlags)}</span></div>
+      <div><b>${progressPct()}%</b><span>${esc(UI.statProgress)}</span></div>
+    </div>
+    ${unseen.length ? `<p><b>${esc(fmt(UI.unseen, { n: unseen.length }))}</b></p><ul class="branch-list">${unseen.map(s => `<li>${esc(s.title)}</li>`).join('')}</ul>` : `<p><b>${esc(UI.allSeen)}</b></p>`}
+    <div class="actions" style="margin-top:16px"><button class="btn primary" id="m-again">${esc(UI.restart)}</button><button class="btn" id="m-close">${esc(UI.close)}</button></div>`);
+  statusPill(modal.querySelector('#end-status'), ctx.status);
+  modal.querySelector('#m-again').addEventListener('click', restart);
+  modal.querySelector('#m-close').addEventListener('click', closeModal);
+}
+function showStation(id) {
+  const s = ST[id];
+  const steps = Object.entries(S).filter(([, st]) => st.from === id || st.to === id);
+  const seen = steps.filter(([k]) => visited.has(k)).length;
+  openModal(`<div style="font-size:34px">${esc(s.icon || '')}</div><h2>${esc(s.name)}</h2>
+    <p class="mono" style="color:var(--ink-3);margin:0 0 10px">${esc(s.sub || '')}</p>
+    <p>${esc(s.desc || '')}</p>
+    <div class="chips">${s.code.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>
+    <p style="color:var(--ink-3);font-size:14px">${esc(fmt(UI.stationSteps, { n: steps.length, m: seen }))}</p>
+    <div class="actions"><button class="btn primary" id="m-close">${esc(UI.backToMap)}</button></div>`);
+  modal.querySelector('#m-close').addEventListener('click', closeModal);
+}
+function decisionHtml(d) {
+  const list = (cls, title, items) => `<div class="to ${cls}"><h4>${esc(title)}</h4><ul>${(items && items.length ? items : [UI.noneKnown]).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  return `<article class="dec" id="dec-${esc(d.id)}">
+    <div class="dec-head"><h3>${esc(d.title)}</h3>${partTag(d.part)}<span class="src">${esc(d.src || '')}</span></div>
+    <p><b>${esc(UI.decision)}</b> ${esc(d.decision)}</p>
+    <p><b>${esc(UI.why)}</b> ${esc(d.why)}</p>
+    <div class="tradeoffs">${list('plus', UI.plus, d.plus)}${list('cost', UI.cost, d.cost)}${list('risk', UI.risk, d.risk)}</div>
+    <div class="dec-steps">${esc(UI.onSteps)} ${d.steps.map(s => `<button class="step-chip" data-step="${esc(s)}">${esc(S[s].title)}</button>`).join('')}</div>
+  </article>`;
+}
+const wireStepChips = root => root.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => jumpTo(b.dataset.step)));
+function showDecision(id) {
+  const d = DECISIONS.find(x => x.id === id);
+  openModal(decisionHtml(d) + `<div class="actions" style="margin-top:14px"><button class="btn primary" id="m-close">${esc(UI.decBack)}</button><button class="btn" id="m-all">${esc(UI.decAll)}</button></div>`);
+  wireStepChips(modal);
+  modal.querySelector('#m-close').addEventListener('click', closeModal);
+  modal.querySelector('#m-all').addEventListener('click', () => {
+    closeModal(); showTab('dec');
+    const c = document.getElementById('dec-' + id);
+    if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 1600); }
+  });
+}
+
+/* ---------- Decisions tab ---------- */
+let decFilter = 'all';
+function renderDecisions() {
+  document.getElementById('dec-total').textContent = DECISIONS.length;
+  const used = [...new Set(DECISIONS.map(d => PARTS[d.part] ? d.part : 'system'))];
+  const filters = [['all', UI.all, DECISIONS.length]].concat(used.map(p => [p, PARTS[p].name, DECISIONS.filter(d => (PARTS[d.part] ? d.part : 'system') === p).length]));
+  document.getElementById('dec-filters').innerHTML = filters.map(([k, v, n]) => `<button class="filter" data-filter="${esc(k)}" aria-pressed="${decFilter === k}">${esc(v)} · ${n}</button>`).join('');
+  document.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { decFilter = b.dataset.filter; renderDecisions(); }));
+  const grid = document.getElementById('dec-grid');
+  grid.innerHTML = DECISIONS.filter(d => decFilter === 'all' || (PARTS[d.part] ? d.part : 'system') === decFilter).map(decisionHtml).join('');
+  wireStepChips(grid);
+}
+function showTab(name) {
+  const map = name === 'map';
+  document.getElementById('tab-map').setAttribute('aria-selected', map);
+  document.getElementById('tab-dec').setAttribute('aria-selected', !map);
+  document.getElementById('view-map').hidden = !map;
+  document.getElementById('view-dec').hidden = map;
+  if (map) fitTexts();
+  try { localStorage.setItem(KEY + ':tab', name); } catch (e) {}
+}
+document.getElementById('tab-map').addEventListener('click', () => showTab('map'));
+document.getElementById('tab-dec').addEventListener('click', () => showTab('dec'));
+if (!DECISIONS.length) document.getElementById('tab-dec').hidden = true;
+
+/* ---------- Controls ---------- */
+document.getElementById('layer-data').addEventListener('change', e => { layer.data = e.target.checked; paintMap(); });
+document.getElementById('layer-ctrl').addEventListener('change', e => { layer.ctrl = e.target.checked; paintMap(); });
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input, textarea, select')) return;
+  if (overlay.classList.contains('open')) { if (e.key === 'Escape') closeModal(); return; }
+  if (document.getElementById('view-map').hidden) return;
+  const step = S[history[history.length - 1]];
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); back(); }
+  else if (/^[1-4]$/.test(e.key) && step.choices) choose(+e.key - 1);
+});
+const root = document.documentElement;
+document.getElementById('theme-btn').addEventListener('click', () => {
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem(KEY + ':theme', root.dataset.theme); } catch (e) {}
+});
+try { const t = localStorage.getItem(KEY + ':theme'); if (t) root.dataset.theme = t; } catch (e) {}
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (!confirm(UI.resetConfirm)) return;
+  save = { visited: [], choices: [] };
+  visited.clear(); choicesTaken.clear(); persist();
+  restart();
+});
+
+buildMap();
+fitTexts();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTexts);
+renderDecisions();
+try { if (DECISIONS.length && localStorage.getItem(KEY + ':tab') === 'dec') showTab('dec'); } catch (e) {}
+enter(START);
+})();
+</script>
+</body>
+</html>

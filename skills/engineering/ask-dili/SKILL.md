@@ -81,6 +81,7 @@ Read [PHASE-BOUNDARIES.md](PHASE-BOUNDARIES.md) at the gap between two phases: c
 - **`/grill-me`**: the interview with no repo under it. **`/grilling`** is the primitive both interviews run.
 - **`/research`**: a background agent reads primary sources and leaves a cited file.
 - **`/to-questionnaire`**: when the missing answer is in someone else's head, write them a questionnaire.
+- **`/flow-map`**: one interactive HTML page that walks a request through the app's layers, with forks, situations to replay and the decisions behind each step. For explaining an architecture or onboarding someone onto it.
 - **`/wizard`**: an interactive script for steps only a human can take, like credentials and dashboards.
 - **`/resolving-merge-conflicts`**: works a conflict hunk by hunk, by intent.
 - **`/whiteboard-defense`**: a lesson on a shipped system so you can defend it at a whiteboard.
