@@ -94,12 +94,12 @@
   "decisions": [
     { "id": "async", "part": "api", "title": "Accept now, read later", "src": "ADR 0002",
       "decision": "The upload returns 202 and a worker reads the receipt in the background.",
-      "why": "OCR takes seconds and the vendor limits parallel calls.",
+      "why": "Reading at the [[station:ocr]] takes seconds and the vendor limits parallel calls.",
       "plus": ["The user never waits on the upload screen"], "cost": ["The review screen has to poll"], "risk": ["A long queue at month end"],
       "steps": ["store", "enqueue", "pick"] },
     { "id": "hash", "part": "system", "title": "Duplicates by content hash", "src": "ticket 12",
       "decision": "A unique index on the file hash rejects a second upload.",
-      "why": "Two copies of one receipt would double the expense.",
+      "why": "Two copies of one receipt would double the expense; [[step:dup]] shows the 409. The same rule keeps [[dec:async|the background read]] from running twice.",
       "plus": ["The database settles the race"], "cost": ["A re-photographed receipt has a new hash"], "risk": [],
       "steps": ["dup", "upload"] }
   ],
@@ -260,6 +260,10 @@
   .dec-link { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; background: none; border: none; padding: 5px 0; cursor: pointer; color: var(--ink-2); font-size: 14.5px; }
   .dec-link:hover b { color: var(--accent); }
   .dec-link .arrow { color: var(--ink-3); }
+  .ref { display: inline; background: none; border: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-align: left; }
+  .ref:hover { text-decoration-thickness: 2px; }
+  .btn.return { margin-bottom: 12px; }
+  .dec .src a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
   .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .btn { border: 1px solid var(--line); background: var(--paper); border-radius: 12px; padding: 9px 14px; font-weight: 700; cursor: pointer; transition: transform .1s, border-color .2s, background .2s; }
@@ -437,7 +441,8 @@ const UI = Object.assign({
   endTitle: 'Reached the end', endState: 'State:', statSteps: 'steps on this path', statFlags: 'flags left', statProgress: 'progress on the map',
   unseen: 'Situations not seen yet ({n}):', allSeen: 'You have seen every situation.',
   close: 'Close', backToMap: 'Back to map', stationSteps: 'Steps through this station: {n}, seen {m}.',
-  decBack: 'Back', decAll: 'All decisions',
+  backTo: '← Back', decAll: 'All decisions', openOnMap: 'Open on the map',
+  returnToDecision: '← Back to the decision: {t}', returnToPrev: '← Back to where you were',
 }, DATA.ui || {});
 const fmt = (s, o) => s.replace(/\{(\w+)\}/g, (m, k) => o[k]);
 document.documentElement.lang = DATA.lang || 'en';
@@ -450,7 +455,7 @@ if (acc !== undefined && acc >= 0) {
   titleEl.append(DATA.title.slice(0, acc));
   const sp = document.createElement('span'); sp.textContent = DATA.titleAccent; titleEl.append(sp, DATA.title.slice(acc + DATA.titleAccent.length));
 } else titleEl.textContent = DATA.title;
-document.getElementById('intro').textContent = DATA.intro || '';
+// intro is rendered with rich() once the data is loaded, below
 
 /* ---------- Layout: lanes stacked, stations by lane and column ---------- */
 const VW = 1260, SW = 148, SH = 60, GAP = 25, TOP = 20;
@@ -534,6 +539,7 @@ const visited = new Set(save.visited);
 const choicesTaken = new Set(save.choices);
 let history = [];
 let auto = false, autoTimer = null, animating = false;
+let returnTo = null; // { label, go }: where a jump to the map came from
 
 /* ---------- SVG ---------- */
 const NS = 'http://www.w3.org/2000/svg';
@@ -675,6 +681,16 @@ function jsonHtml(obj) {
     return `<span class="j-lit">${lit}</span>`;
   });
 }
+// Cross-references in any text: [[dec:id]], [[step:id]], [[station:id]], optionally [[dec:id|label]].
+const REF = /\[\[(dec|step|station):([\w-]+)(?:\|([^\]]+))?\]\]/g;
+function refName(kind, id) {
+  return kind === 'dec' ? (DECISIONS.find(d => d.id === id) || {}).title : kind === 'step' ? (S[id] || {}).title : (ST[id] || {}).name;
+}
+function rich(t) {
+  return esc(t || '').replace(REF, (m, kind, id, label) => `<button class="ref" data-ref="${kind}:${id}">${label || esc(refName(kind, id) || id)}</button>`);
+}
+const srcHtml = src => (Array.isArray(src) ? src : [src]).filter(Boolean)
+  .map(x => typeof x === 'string' ? esc(x) : `<a href="${esc(x.href)}" target="_blank" rel="noopener">${esc(x.label)}</a>`).join(', ');
 const partTag = p => { const x = PARTS[p] || PARTS.system; return `<span class="tag ${x.cls}">${esc(x.name)}</span>`; };
 
 function renderStep() {
@@ -689,7 +705,7 @@ function renderStep() {
   html += step.from === step.to
     ? `<div class="route">${esc(UI.atStation)} <b>${esc(to.name)}</b></div>`
     : `<div class="route"><b>${esc(from.name)}</b> → <b>${esc(to.name)}</b></div>`;
-  html += `<p>${esc(field(step, 'text', ctx) || '')}</p>`;
+  html += `<p>${rich(field(step, 'text', ctx))}</p>`;
   if (step.code) html += `<div class="chips">${step.code.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>`;
   const packet = field(step, 'packet', ctx);
   if (packet !== undefined) html += `<details class="packet" open><summary>${esc(UI.packet)}</summary><pre>${jsonHtml(packet)}</pre></details>`;
@@ -707,7 +723,9 @@ function renderStep() {
   if (step.end) html += `<button class="btn primary" id="btn-again">${esc(UI.restart)}</button>`;
   else if (!step.choices) html += `<button class="btn primary" id="btn-next">${esc(UI.next)}</button>`;
   html += `<label class="auto"><input type="checkbox" id="auto" ${auto ? 'checked' : ''}> ${esc(UI.auto)}</label></div>`;
-  card.innerHTML = html;
+  card.innerHTML = (returnTo ? `<button class="btn small return" id="btn-return">${esc(returnTo.label)}</button>` : '') + html;
+  const br = card.querySelector('#btn-return');
+  if (br) br.addEventListener('click', () => { const r = returnTo; returnTo = null; renderStep(); r.go(); });
   card.querySelectorAll('[data-choice]').forEach(b => b.addEventListener('click', () => choose(+b.dataset.choice)));
   card.querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => showDecision(b.dataset.dec)));
   const bn = card.querySelector('#btn-next'); if (bn) bn.addEventListener('click', next);
@@ -725,7 +743,7 @@ function renderFlags(ctx) {
   if (!all.length) { box.innerHTML = `<div class="empty">${esc(UI.flagsEmpty)}</div>`; return; }
   box.innerHTML = all.map(f => {
     const d = FLAGS[f] || { text: '', src: '' };
-    return `<div class="flag ${ctx.gone.has(f) ? 'gone' : ''}"><i class="dot"></i><div><code>${esc(f)}</code><br><span>${esc(d.text)}${d.src ? ' · ' + esc(d.src) : ''}${ctx.gone.has(f) ? ' · ' + esc(UI.flagCleared) : ''}</span></div></div>`;
+    return `<div class="flag ${ctx.gone.has(f) ? 'gone' : ''}"><i class="dot"></i><div><code>${esc(f)}</code><br><span>${rich(d.text)}${d.src ? ' · ' + esc(d.src) : ''}${ctx.gone.has(f) ? ' · ' + esc(UI.flagCleared) : ''}</span></div></div>`;
   }).join('');
 }
 const progressPct = () => Math.round(100 * COUNTABLE.filter(k => visited.has(k)).length / COUNTABLE.length);
@@ -747,7 +765,7 @@ function renderSituations() {
   const grid = document.getElementById('sit-grid');
   grid.innerHTML = SITUATIONS.map((s, i) => {
     const seen = visited.has(s.step);
-    return `<div class="sit ${seen ? 'seen' : ''}"><div class="sit-head"><b>${esc(s.title)}</b>${seen ? `<span class="seen-mark">${esc(UI.seen)}</span>` : ''}</div><small>${esc(s.text)}</small><button class="btn small" data-sit="${i}">${esc(UI.play)}</button></div>`;
+    return `<div class="sit ${seen ? 'seen' : ''}"><div class="sit-head"><b>${esc(s.title)}</b>${seen ? `<span class="seen-mark">${esc(UI.seen)}</span>` : ''}</div><small>${rich(s.text)}</small><button class="btn small" data-sit="${i}">${esc(UI.play)}</button></div>`;
   }).join('');
   grid.querySelectorAll('[data-sit]').forEach(b => b.addEventListener('click', () => {
     jumpTo(SITUATIONS[+b.dataset.sit].step);
@@ -801,11 +819,13 @@ function back() {
   paintMap(); renderStep();
   animateStep(S[history[history.length - 1]], () => {});
 }
-function restart() { closeModal(); history = []; enter(START); }
-function jumpTo(target) {
+function restart() { closeModal(); returnTo = null; history = []; enter(START); }
+// ret ({ label, go }) is offered on the step card so the reader can go back to where the jump started.
+function jumpTo(target, ret) {
   const path = pathTo(target);
   if (!path) return;
   closeModal(); showTab('map');
+  returnTo = ret || null;
   animating = false;
   history = path.slice(0, -1);
   enter(target);
@@ -825,62 +845,101 @@ function toast(title, sub) {
   setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = 0; setTimeout(() => t.remove(), 400); }, 3200);
 }
 
-/* ---------- Modals ---------- */
+/* ---------- Modals: a stack, so a reference opened from a modal comes back to it ---------- */
 const overlay = document.getElementById('overlay'), modal = document.getElementById('modal');
-function openModal(html) { modal.innerHTML = html; overlay.classList.add('open'); }
-function closeModal() { overlay.classList.remove('open'); }
+let modalStack = [], modalCur = null;
+function showModal(render) {
+  if (overlay.classList.contains('open') && modalCur) modalStack.push(modalCur); else modalStack = [];
+  modalCur = render; drawModal();
+}
+function drawModal() { modal.innerHTML = modalCur(); overlay.classList.add('open'); modal.scrollTop = 0; }
+function modalBack() { if (modalStack.length) { modalCur = modalStack.pop(); drawModal(); } else closeModal(); }
+function closeModal() { overlay.classList.remove('open'); modalStack = []; modalCur = null; }
+function hereInModal() {
+  const stack = modalStack.concat(modalCur);
+  return () => { modalStack = stack.slice(0, -1); modalCur = stack[stack.length - 1]; drawModal(); };
+}
+const backBtn = () => `<button class="btn" data-mback>${esc(modalStack.length ? UI.backTo : UI.close)}</button>`;
 overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+const pillHtml = st => `<span class="status-pill ${st && st.tone ? st.tone : ''}">${esc(st ? st.text : UI.statusInitial)}</span>`;
 
 function finish() {
   const ctx = ctxOf(history);
   const unseen = SITUATIONS.filter(s => !visited.has(s.step));
-  openModal(`<h2>${esc(UI.endTitle)}</h2>
-    <p style="color:var(--ink-2)">${esc(UI.endState)} <span class="status-pill" id="end-status"></span></p>
+  showModal(() => `<h2>${esc(UI.endTitle)}</h2>
+    <p style="color:var(--ink-2)">${esc(UI.endState)} ${pillHtml(ctx.status)}</p>
     <div class="stats">
       <div><b>${history.length}</b><span>${esc(UI.statSteps)}</span></div>
       <div><b>${ctx.flags.size}</b><span>${esc(UI.statFlags)}</span></div>
       <div><b>${progressPct()}%</b><span>${esc(UI.statProgress)}</span></div>
     </div>
     ${unseen.length ? `<p><b>${esc(fmt(UI.unseen, { n: unseen.length }))}</b></p><ul class="branch-list">${unseen.map(s => `<li>${esc(s.title)}</li>`).join('')}</ul>` : `<p><b>${esc(UI.allSeen)}</b></p>`}
-    <div class="actions" style="margin-top:16px"><button class="btn primary" id="m-again">${esc(UI.restart)}</button><button class="btn" id="m-close">${esc(UI.close)}</button></div>`);
-  statusPill(modal.querySelector('#end-status'), ctx.status);
-  modal.querySelector('#m-again').addEventListener('click', restart);
-  modal.querySelector('#m-close').addEventListener('click', closeModal);
+    <div class="actions" style="margin-top:16px"><button class="btn primary" data-mrestart>${esc(UI.restart)}</button>${backBtn()}</div>`);
 }
-function showStation(id) {
+function stationModal(id) {
   const s = ST[id];
   const steps = Object.entries(S).filter(([, st]) => st.from === id || st.to === id);
   const seen = steps.filter(([k]) => visited.has(k)).length;
-  openModal(`<div style="font-size:34px">${esc(s.icon || '')}</div><h2>${esc(s.name)}</h2>
+  return `<div style="font-size:34px">${esc(s.icon || '')}</div><h2>${esc(s.name)}</h2>
     <p class="mono" style="color:var(--ink-3);margin:0 0 10px">${esc(s.sub || '')}</p>
-    <p>${esc(s.desc || '')}</p>
+    <p>${rich(s.desc)}</p>
     <div class="chips">${s.code.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>
     <p style="color:var(--ink-3);font-size:14px">${esc(fmt(UI.stationSteps, { n: steps.length, m: seen }))}</p>
-    <div class="actions"><button class="btn primary" id="m-close">${esc(UI.backToMap)}</button></div>`);
-  modal.querySelector('#m-close').addEventListener('click', closeModal);
+    <div class="actions">${backBtn()}</div>`;
 }
-function decisionHtml(d) {
-  const list = (cls, title, items) => `<div class="to ${cls}"><h4>${esc(title)}</h4><ul>${(items && items.length ? items : [UI.noneKnown]).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
-  return `<article class="dec" id="dec-${esc(d.id)}">
-    <div class="dec-head"><h3>${esc(d.title)}</h3>${partTag(d.part)}<span class="src">${esc(d.src || '')}</span></div>
-    <p><b>${esc(UI.decision)}</b> ${esc(d.decision)}</p>
-    <p><b>${esc(UI.why)}</b> ${esc(d.why)}</p>
+function stepModal(id) {
+  const s = S[id], ctx = ctxOf([]);
+  const route = s.from === s.to ? `${esc(UI.atStation)} <b>${esc(ST[s.to].name)}</b>` : `<b>${esc(ST[s.from].name)}</b> → <b>${esc(ST[s.to].name)}</b>`;
+  return `<div class="step-meta"><span class="tag ${s.kind}">${esc(KIND[s.kind])}</span>${s.mode ? `<span class="tag">${esc(s.mode)}</span>` : ''}</div>
+    <h2>${esc(field(s, 'title', ctx))}</h2><div class="route">${route}</div>
+    <p>${rich(field(s, 'text', ctx))}</p>
+    <div class="actions"><button class="btn primary" data-step="${esc(id)}">${esc(UI.openOnMap)}</button>${backBtn()}</div>`;
+}
+function decisionHtml(d, inModal) {
+  const list = (cls, title, items) => `<div class="to ${cls}"><h4>${esc(title)}</h4><ul>${(items && items.length ? items.map(rich) : [esc(UI.noneKnown)]).map(x => `<li>${x}</li>`).join('')}</ul></div>`;
+  return `<article class="dec" ${inModal ? '' : `id="dec-${esc(d.id)}"`} data-dec-card="${esc(d.id)}">
+    <div class="dec-head"><h3>${esc(d.title)}</h3>${partTag(d.part)}<span class="src">${srcHtml(d.src)}</span></div>
+    <p><b>${esc(UI.decision)}</b> ${rich(d.decision)}</p>
+    <p><b>${esc(UI.why)}</b> ${rich(d.why)}</p>
     <div class="tradeoffs">${list('plus', UI.plus, d.plus)}${list('cost', UI.cost, d.cost)}${list('risk', UI.risk, d.risk)}</div>
     <div class="dec-steps">${esc(UI.onSteps)} ${d.steps.map(s => `<button class="step-chip" data-step="${esc(s)}">${esc(S[s].title)}</button>`).join('')}</div>
   </article>`;
 }
-const wireStepChips = root => root.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => jumpTo(b.dataset.step)));
-function showDecision(id) {
-  const d = DECISIONS.find(x => x.id === id);
-  openModal(decisionHtml(d) + `<div class="actions" style="margin-top:14px"><button class="btn primary" id="m-close">${esc(UI.decBack)}</button><button class="btn" id="m-all">${esc(UI.decAll)}</button></div>`);
-  wireStepChips(modal);
-  modal.querySelector('#m-close').addEventListener('click', closeModal);
-  modal.querySelector('#m-all').addEventListener('click', () => {
-    closeModal(); showTab('dec');
-    const c = document.getElementById('dec-' + id);
-    if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 1600); }
-  });
+const decisionModal = id => decisionHtml(DECISIONS.find(x => x.id === id), true)
+  + `<div class="actions" style="margin-top:14px">${backBtn()}<button class="btn" data-mall="${esc(id)}">${esc(UI.decAll)}</button></div>`;
+const showDecision = id => showModal(() => decisionModal(id));
+const showStation = id => showModal(() => stationModal(id));
+function flashDecision(id) {
+  let c = document.getElementById('dec-' + id);
+  if (!c) { decFilter = 'all'; renderDecisions(); c = document.getElementById('dec-' + id); }
+  if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 1600); }
 }
+function openRef(ref) {
+  const [kind, id] = ref.split(':');
+  if (kind === 'dec' && DECISIONS.some(d => d.id === id)) showDecision(id);
+  else if (kind === 'step' && S[id]) showModal(() => stepModal(id));
+  else if (kind === 'station' && ST[id]) showStation(id);
+}
+// A jump to the map always carries the way back to where it started.
+function openStepFrom(chip) {
+  const id = chip.dataset.step;
+  if (chip.closest('#modal')) return jumpTo(id, { label: UI.returnToPrev, go: hereInModal() });
+  const card = chip.closest('[data-dec-card]');
+  if (card) {
+    const decId = card.dataset.decCard, d = DECISIONS.find(x => x.id === decId);
+    return jumpTo(id, { label: fmt(UI.returnToDecision, { t: d.title }), go: () => { showTab('dec'); flashDecision(decId); } });
+  }
+  jumpTo(id);
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-ref], [data-step], [data-mback], [data-mall], [data-mrestart]');
+  if (!t) return;
+  if (t.dataset.ref) openRef(t.dataset.ref);
+  else if (t.dataset.step) openStepFrom(t);
+  else if (t.hasAttribute('data-mback')) modalBack();
+  else if (t.dataset.mall) { const id = t.dataset.mall; closeModal(); showTab('dec'); flashDecision(id); }
+  else if (t.hasAttribute('data-mrestart')) restart();
+});
 
 /* ---------- Decisions tab ---------- */
 let decFilter = 'all';
@@ -891,8 +950,7 @@ function renderDecisions() {
   document.getElementById('dec-filters').innerHTML = filters.map(([k, v, n]) => `<button class="filter" data-filter="${esc(k)}" aria-pressed="${decFilter === k}">${esc(v)} · ${n}</button>`).join('');
   document.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { decFilter = b.dataset.filter; renderDecisions(); }));
   const grid = document.getElementById('dec-grid');
-  grid.innerHTML = DECISIONS.filter(d => decFilter === 'all' || (PARTS[d.part] ? d.part : 'system') === decFilter).map(decisionHtml).join('');
-  wireStepChips(grid);
+  grid.innerHTML = DECISIONS.filter(d => decFilter === 'all' || (PARTS[d.part] ? d.part : 'system') === decFilter).map(d => decisionHtml(d)).join('');
 }
 function showTab(name) {
   const map = name === 'map';
@@ -912,7 +970,7 @@ document.getElementById('layer-data').addEventListener('change', e => { layer.da
 document.getElementById('layer-ctrl').addEventListener('change', e => { layer.ctrl = e.target.checked; paintMap(); });
 document.addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('input, textarea, select')) return;
-  if (overlay.classList.contains('open')) { if (e.key === 'Escape') closeModal(); return; }
+  if (overlay.classList.contains('open')) { if (e.key === 'Escape') modalBack(); return; }
   if (document.getElementById('view-map').hidden) return;
   const step = S[history[history.length - 1]];
   if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
@@ -933,6 +991,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   restart();
 });
 
+document.getElementById('intro').innerHTML = rich(DATA.intro);
 buildMap();
 fitTexts();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTexts);

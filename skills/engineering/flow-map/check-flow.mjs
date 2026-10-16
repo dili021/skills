@@ -95,6 +95,39 @@ for (const d of decisions) {
   for (const s of d.steps || []) if (!steps[s]) err(`decision ${d.id}: step ${s} does not exist`);
   if (d.part && d.part !== "system" && !laneIds.has(d.part)) err(`decision ${d.id}: part ${d.part} is neither a lane id nor "system"`);
 }
+// Cross-references: every [[kind:id]] resolves, and a decision is never named in quotes without a link.
+const texts = [["intro", D.intro]];
+for (const [id, s] of Object.entries(steps)) {
+  texts.push([`step ${id}`, s.text]);
+  (s.variants || []).forEach((v, i) => texts.push([`step ${id} variant ${i}`, v.text]));
+}
+for (const [id, s] of Object.entries(stations)) texts.push([`station ${id}`, s.desc]);
+for (const [code, f] of Object.entries(flags)) texts.push([`flag ${code}`, f.text]);
+situations.forEach(s => texts.push([`situation "${s.title}"`, s.text]));
+for (const d of decisions) {
+  for (const k of ["decision", "why"]) texts.push([`decision ${d.id} ${k}`, d[k], d.id]);
+  for (const k of ["plus", "cost", "risk"]) (d[k] || []).forEach(x => texts.push([`decision ${d.id} ${k}`, x, d.id]));
+  for (const x of Array.isArray(d.src) ? d.src : [d.src]) {
+    if (x && typeof x === "object" && (!x.label || !x.href)) err(`decision ${d.id}: a src link needs label and href`);
+  }
+}
+const resolves = (kind, id) => kind === "dec" ? decIds.has(id) : kind === "step" ? !!steps[id] : !!stations[id];
+const QUOTES = [["„", "\""], ["„", "“"], ["\"", "\""], ["“", "”"], ["«", "»"]];
+for (const [where, t, own] of texts) {
+  if (!t) continue;
+  for (const m of t.matchAll(/\[\[(\w+):([\w-]+)(?:\|[^\]]+)?\]\]/g)) {
+    if (!["dec", "step", "station"].includes(m[1])) err(`${where}: unknown reference kind ${m[1]}`);
+    else if (!resolves(m[1], m[2])) err(`${where}: reference ${m[0]} points at nothing`);
+  }
+  const plain = t.replace(/\[\[[^\]]+\]\]/g, "").toLowerCase();
+  for (const d of decisions) {
+    if (d.id === own || !d.title) continue;
+    const title = d.title.toLowerCase();
+    if (QUOTES.some(([a, b]) => plain.includes(a + title + b))) err(`${where}: names decision "${d.title}" in quotes; write [[dec:${d.id}]] so it is a link`);
+    else if (plain.includes(title)) warn(`${where}: mentions decision "${d.title}" by its title; if it is a reference, write [[dec:${d.id}]]`);
+  }
+}
+
 const covered = new Set(decisions.flatMap(d => d.steps || []));
 const bare = Object.keys(steps).filter(id => !covered.has(id) && !steps[id].end);
 
