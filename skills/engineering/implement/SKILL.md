@@ -7,7 +7,7 @@ Implement the work described by the user in the spec or tickets.
 
 Use /tdd where possible, at pre-agreed seams.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end.
+Run typechecking regularly and single test files regularly. Once, at the end, run the project's `check` command from `CONSTRAINTS.md` (or the full test suite when the repo has none), and fix until it is green.
 
 Once done, use /code-review to review the work, then /verdict to prove it against the acceptance criteria.
 

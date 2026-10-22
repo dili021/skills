@@ -91,14 +91,14 @@ When a lane reports back:
 
 1. Read its report against the brief's format. When a field is missing or a check was skipped, send the lane agent back to finish it rather than merging.
 2. Merge its branch into the base branch. On conflict, use `/resolving-merge-conflicts`.
-3. Run typecheck and the full test suite on the base branch. A red base blocks every later merge, so fix it before taking the next lane.
+3. Run the project's `check` command from `CONSTRAINTS.md` on the base branch, or typecheck and the full test suite when the repo has none. A red base blocks every later merge, so fix it before taking the next lane. When the merge hook from `constraints` is active, the merge itself already ran `check`.
 4. Release the **frontier**: dispatch any eager join whose blocking lanes have now merged. Give a released join a fresh worktree cut from the current base branch, set up per step 4's plan.
 
 Repeat until every lane and eager join has merged. Then dispatch the held joins, and merge them the same way.
 
 ### 8. Verify and clean up
 
-On the base branch, with everything merged: run the full test suite, then `/code-review`, then `/verdict` against the tickets' acceptance criteria.
+On the base branch, with everything merged: run `check` (or the full test suite), then `/code-review`, then `/verdict` against the tickets' acceptance criteria.
 
 Remove the lane worktrees with `git worktree remove`, and delete the merged lane branches.
 
