@@ -53,7 +53,9 @@ export function treeId() {
       utimesSync(index, st.atime, st.mtime);
     }
     const env = { ...process.env, GIT_INDEX_FILE: index };
-    git(['add', '-A', '--', '.', ':(exclude).verify', ':(exclude).afk', ':(exclude).claude/settings.local.json'], { cwd: top, env });
+    // Drop the records after `add`: git refuses an `add` whose pathspec names an ignored path.
+    git(['add', '-A'], { cwd: top, env });
+    git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', '.verify', '.afk', '.claude/settings.local.json'], { cwd: top, env });
     return git(['write-tree'], { cwd: top, env });
   } finally {
     rmSync(tmp, { recursive: true, force: true });

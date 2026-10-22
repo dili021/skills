@@ -201,3 +201,14 @@ test('a proof case with a two-part extension keeps its receipt', () => {
   r.node('receipt.mjs', ['run', 'prove', 'status-reload', '--', process.execPath, '-e', 'process.exit(1)']);
   assert.match(r.gate('receipts-fresh').stdout, /prove status-reload exited 1/);
 });
+
+test('tree id works when .verify and the local Claude settings exist and git ignores them', () => {
+  const r = workRepo();
+  r.write('.claude/settings.local.json', '{}');
+  r.write('.verify/receipts/x.json', '{}');
+  r.write('.git/info/exclude', '.verify/\n.afk/\n.claude/settings.local.json\n');
+  const out = r.node('receipt.mjs', ['tree']);
+  assert.equal(out.status, 0, out.stderr);
+  r.write('.claude/settings.local.json', '{"changed":true}');
+  assert.equal(r.node('receipt.mjs', ['tree']).stdout, out.stdout);
+});
