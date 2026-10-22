@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Runs `check` on the merge result before git creates a merge commit into the base branch.
+# Active only in a clone where `/setup-dili-skills` put its wrapper into .git/hooks.
+. "$(dirname "$0")/bar.conf"
+# A checkout with Windows line endings leaves a carriage return on each value.
+BASE="${BASE%$'\r'}"; CHECK="${CHECK%$'\r'}"
+[ "$(git symbolic-ref --short -q HEAD)" = "$BASE" ] || exit 0
+echo "pre-merge-commit: running check on the merge result: $CHECK" >&2
+# Git exports GIT_DIR and GIT_INDEX_FILE to hooks. A check that runs git in a scratch repo, as test
+# suites do, would act on this repo instead. The hook already runs at the top of the work tree.
+unset GIT_DIR GIT_INDEX_FILE
+if ! eval "$CHECK"; then
+  echo "pre-merge-commit: check failed on the merge result, so no merge commit was made." >&2
+  echo "pre-merge-commit: run 'git merge --abort', fix the branch, and merge again." >&2
+  exit 1
+fi

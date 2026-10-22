@@ -119,6 +119,8 @@ A correct seam is one where the test exercises the **real bug pattern** as it oc
 
 **If no correct seam exists, that itself is the finding.** Note it. The codebase architecture is preventing the bug from being locked down. Flag this for the next phase.
 
+When the correct seam is the user path across processes and the repo has a verify CLI (`docs/agents/verify.md`), the regression test is a proof case. Write `verify/prove/<feature>-<behaviour>` and watch `verify/cli prove <case>` exit 1 before the fix and 0 after.
+
 If a correct seam exists:
 
 1. Turn the minimised repro into a failing test at that seam.
@@ -133,6 +135,7 @@ Required before declaring done:
 
 - [ ] Original repro no longer reproduces (re-run the Phase 1 loop)
 - [ ] Regression test passes (or absence of seam is documented)
+- [ ] If the bug shipped under a PASS verdict, a `verifier miss` row is in `docs/agents/lessons.md`
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next debugger learns

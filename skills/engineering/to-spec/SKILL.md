@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 This skill takes the current conversation context and codebase understanding and produces a spec. Do NOT interview the user; just synthesize what you already know.
 
-The issue tracker and triage label vocabulary should have been provided to you. If not, tell the user to run `/setup-dili-skills`.
+Read the issue tracker from `docs/agents/issue-tracker.md` and the triage label vocabulary from `docs/agents/triage-labels.md`. When the tracker file is missing, tell the user to run `/setup-dili-skills`.
 
 ## Process
 

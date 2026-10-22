@@ -34,7 +34,7 @@ These are symlinks, so a `git pull` updates them in place. `--prune` clears
 ## Where to start
 
 - [`FIRST-STEPS.md`](FIRST-STEPS.md) walks one repo from install to the first unattended run.
-- `/setup-dili-skills` configures a repo: issue tracker, glossary, the bar, the verify skill.
+- `/setup-dili-skills` configures a repo (issue tracker, glossary, the bar, the verify CLI) and turns the flow on for one clone.
 - `/ask-dili` answers which skill fits a situation.
 
 ## Layout

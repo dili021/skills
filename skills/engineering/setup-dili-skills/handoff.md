@@ -8,6 +8,10 @@ How a finished run reaches the person who merges. `/afk` reads this file. No ski
 
 **Push the work branch:** <yes | no>, used in local-branch mode only
 
+**Check enforced:** <before a merge into the base | at the end of each agent turn | in CI>
+
+**Check command:** `<the repo's check command>`
+
 ## Pull request
 
 The run ends on a pull request that is ready for review, opened with `<gh | glab | az>`. CI runs on it. The body follows the `pr` skill, with an Attention section first.

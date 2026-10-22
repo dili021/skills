@@ -1,6 +1,6 @@
 ---
 name: setup-dili-skills
-description: "Configure this repo for the skills: issue tracker, triage labels, domain docs, the quality bar, the verify skill and the lessons file. Run once per repo."
+description: "Configure this repo for the skills: issue tracker, triage labels, domain docs, the quality bar, the verify CLI and the lessons file, then turn the flow on for this clone. Run once per repo, again in each clone that joins, and with `off` to turn it off."
 disable-model-invocation: true
 ---
 
@@ -12,10 +12,13 @@ Scaffold the per-repo configuration that the engineering skills assume:
 - **Triage labels**: the strings used for the five canonical triage roles
 - **Domain docs**: where `GLOSSARY.md` and ADRs live, and the consumer rules for reading them
 - **The bar**: `CONSTRAINTS.md`, its `check` command and the floor guard
-- **The verify skill**: a project-local `verify-<app>` skill that drives the app as a user
+- **The verify CLI**: `verify/cli`, which drives the app as a user, and its guide `docs/agents/verify.md`
 - **The lessons file**: `docs/agents/lessons.md`, the buffer of agent mistakes that may become checks
 - **The handoff**: whether a finished run ends on a pull request or on a local branch
 - **The code graph**: a graphify graph and the git hooks that keep it fresh, when graphify is installed
+- **Activation**: the git hooks and Claude Code hooks for this clone and this person, all outside git
+
+Everything committed to the repo runs nothing on its own. Activation is personal, so a teammate without this plugin, or who never ran this skill, works as before.
 
 This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write.
 
@@ -31,7 +34,8 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: does this skill's prior output already exist?
 - `CONSTRAINTS.md` at the repo root, and a `check` entry in the repo's scripts
-- `.claude/skills/verify-*/`: is there a verify skill already?
+- `docs/agents/verify.md` and `verify/`: is there a verify CLI already? An older `.claude/skills/verify-*/` counts too
+- `.githooks/`, the hooks in `.git/hooks` (a wrapper says `dili-skills hook wrapper`), `git config core.hooksPath` (a hook manager such as Husky) and `.claude/settings.local.json`: is this clone activated?
 - Which stacks the repo holds (`*.sln` and `*.csproj`, `pyproject.toml`, `package.json`) and in which directories
 - The git host's CLI (`gh`, `glab`, `az`) on `PATH` and signed in, and whether recent history merges through pull requests
 - `graphify` on `PATH`, `graphify-out/`, and `graphify hook status`
@@ -43,7 +47,14 @@ Look at the current repo to understand its starting state. Read whatever exists;
 
 Summarise what's present and what's missing. Then take the sections in order. One section, one answer, then the next.
 
-Lead each section with the recommended answer so the user can accept it in a word. Give a one-line explainer only when the choice genuinely branches; skip the section entirely when exploration already settled it (Section B when `triage` isn't installed, Section C when there's no monorepo).
+Lead each section with the recommended answer so the user can accept it in a word. Give a one-line explainer only when the choice genuinely branches; skip the section entirely when exploration already settled it (Section B when `triage` isn't installed, Section C when there's no monorepo). When the repo already holds the files from an earlier run, by this user or a teammate, check them, skip the sections they settle, and go to step 8.
+
+**Section 0: Team or personal.** Ask one question: is this setup shared with the team, or yours alone? Recommend personal when other people commit to the repo and have not agreed to the flow.
+
+- **Team**: write the `## Agent skills` block into `CLAUDE.md` or `AGENTS.md`, and offer CI for `check`.
+- **Personal**: skip the block and CI. Write only files that run nothing on their own (`CONSTRAINTS.md`, `scripts/`, `.githooks/`, `verify/`, `docs/agents/`), and ask whether to commit them or list them in `.git/info/exclude`. When the user picks exclude, say what it costs: the files are missing from every worktree, so `/afk` and `/lanes`, which work in worktrees, cannot run the gate or the verify CLI; the floor guard cannot see them; and they have no history. Recommend commit when the user wants `/afk`.
+
+Activation is personal in both modes (step 8).
 
 **Section A: Issue tracker.**
 
@@ -76,14 +87,14 @@ Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSS
 
 Show the user a draft of:
 
-- The `## Agent skills` block to add to whichever of `CLAUDE.md` / `AGENTS.md` is being edited (see step 4 for selection rules)
+- In team mode, the `## Agent skills` block to add to whichever of `CLAUDE.md` / `AGENTS.md` is being edited (see step 4 for selection rules)
 - The contents of `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and `docs/agents/triage-labels.md` (the last only when `triage` is installed)
 
 Let them edit before writing.
 
 ### 4. Write
 
-**Pick the file to edit:**
+In personal mode, skip to the docs files below. In team mode, **pick the file to edit:**
 
 - If `CLAUDE.md` exists, edit it.
 - Else if `AGENTS.md` exists, edit it.
@@ -109,6 +120,10 @@ The block:
 ### Domain docs
 
 [one-line summary of layout: "single-context" or "multi-context"]. See `docs/agents/domain.md`.
+
+### The bar
+
+`CONSTRAINTS.md`. `check` is enforced [before a merge into <base> | at the end of each agent turn | in CI]. A new clone runs `/setup-dili-skills` to activate the hooks.
 ```
 
 Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.md`, only when `triage` is installed and Section B ran. When it isn't, both are omitted.
@@ -129,9 +144,9 @@ Create `docs/agents/lessons.md` from [lessons.md](./lessons.md) when it does not
 
 Skip when `CONSTRAINTS.md` already exists and its rows cover every stack you found in step 1. Otherwise read [`../constraints/SKILL.md`](../constraints/SKILL.md) and run its process here, starting from the stacks you found. It confirms them with the user, writes rows only for those, and tells the floor guard which stacks to check. When a stack has been added to or removed from the repo since the last run, update the rows and `floor-guard.config.json` to match. Done when its own completion criteria hold: `check` is green on the base branch and the floor guard is red on a throwaway branch.
 
-### 6. The verify skill
+### 6. The verify CLI
 
-Skip when a `verify-<app>` skill already exists. Otherwise call the Skill tool with `create-verification-skill`. Done when the generated skill has run its own instructions once end to end and the evidence survived cleanup.
+Skip when `docs/agents/verify.md` already exists; an older `.claude/skills/verify-*/` is moved there by `/maintain-verification-skill`. Otherwise read [`../create-verification-skill/SKILL.md`](../create-verification-skill/SKILL.md) and run its process here. It is user-invoked, so the Skill tool cannot start it. Done when the verify CLI has run once end to end and the evidence and the receipt survived `down`.
 
 When the app cannot be started here (missing credentials, VPN, seed data), stop this step, say exactly what is missing, and carry on to the report. The user fixes the dev setup and re-runs this skill.
 
@@ -146,10 +161,14 @@ Skip when `graphify` is not on `PATH`, and report the row as missing and optiona
 
 Done when `graphify hook status` reports both hooks, `git status` shows nothing new from this step, and `graph.json` holds nodes from every stack in the repo.
 
-### 8. Report readiness
+### 8. Activate for this clone
 
-One table, one row per item: issue tracker, triage labels, domain docs, the bar, the verify skill, the lessons file, the handoff mode, the code graph, CI on pull requests. In local-branch mode the CI row reads "not used, the run's own `check` is the last gate". Each row is **ready**, **missing** or **blocked**, with what a missing or blocked row costs an `/afk` run. Without a verify skill, UI criteria come back INCONCLUSIVE.
+Run this skill's [`scripts/activate.mjs`](scripts/activate.mjs) from the repo root: `node <this skill>/scripts/activate.mjs on <base>`, adding `--stop-hook "<check command>"` when the bar step chose the Stop hook. The base and the command are in the "Base branch", "Check enforced" and "Check command" lines of `docs/agents/handoff.md`. It puts a small wrapper for each hook in `.githooks/` into `.git/hooks`, keeping any hook already there as `<name>.local` and running it first. It sets `branch.<base>.mergeOptions` to `--no-ff`, and adds the PreToolUse hook `scripts/no-verify.mjs` and the chosen Stop hook to `.claude/settings.local.json`, next to whatever the user keeps there. Git tracks none of it. When `core.hooksPath` points at a hook manager, it installs no git hook and says so: tell the user to call `.githooks/pre-merge-commit` and `.githooks/pre-commit` from that manager. A tool that later reinstalls its own `pre-commit` (the pre-commit framework, Husky) can wrap or overwrite the wrapper; run `off` before installing such a tool and `on` after it. Done when the script's report lists every setting the bar step's choice needs: the git hooks for the merge hook, the Stop hook for the turn-end check, and the PreToolUse hook in every case, or a warning that names what it left to the user.
 
-On a repo shared with a team, say which files this run wrote and offer to list them in `.git/info/exclude`, together with `.afk/` and `graphify-out/`, so they stay out of the team's history until the team has agreed.
+When invoked as `/setup-dili-skills off`, run only `node <this skill>/scripts/activate.mjs off <base>` and report what it removed. It removes exactly what `on` added and leaves every file.
 
-Mention that `docs/agents/*.md` can be edited directly later. Re-running this skill is for switching issue trackers, or for finishing a step that was blocked.
+### 9. Report readiness
+
+One table, one row per item: issue tracker, triage labels, domain docs, the bar, where `check` is enforced, receipts and the gate, the verify CLI, the lessons file, the handoff mode, the code graph, CI on pull requests, activation for this clone. In local-branch mode the CI row reads "not used, the run's own `check` is the last gate". Each row is **ready**, **missing** or **blocked**, with what a missing or blocked row costs an `/afk` run. Without a verify CLI, UI criteria come back INCONCLUSIVE. Without the gate, `/afk` names its run class by its own judgement.
+
+Mention that `docs/agents/*.md` can be edited directly later. Re-running this skill is for switching issue trackers, for finishing a step that was blocked, and for activating a new clone.

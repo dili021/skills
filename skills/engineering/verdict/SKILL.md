@@ -9,7 +9,7 @@ A **verdict** is PASS, PASS+NOTES or FAIL on a change, given by an agent that di
 
 ## Process
 
-1. **Assemble the contract.** Collect the acceptance criteria from the ticket, the spec or the user's finish condition, each with its **Proven by** line. Add the base ref, the head ref, and the project's `verify-<app>` skill when one exists. When no criteria are written anywhere, write them from the request and mark them "assumed" in the report. Done when every criterion is a sentence someone can check by running something.
+1. **Assemble the contract.** Collect the acceptance criteria from the ticket, the spec or the user's finish condition, each with its **Proven by** line. Add the base ref, the head ref, and the verify guide `docs/agents/verify.md` when the repo has one. When no criteria are written anywhere, write them from the request and mark them "assumed" in the report. Done when every criterion is a sentence someone can check by running something.
 
 2. **Find the neighbours.** When the repo has `graphify-out/`, call the Skill tool with `code-graph` and run its reach script against the base ref, in the checkout that holds the change. The reached features that the contract does not name go into the brief as **neighbours**, for the verifier to drive once each. Add the other side of any changed route, DTO or message by grep, because the graph does not cross from one stack to another. Without a graph, or with a stale one, the brief says so and the neighbours come from grep alone.
 
@@ -23,9 +23,11 @@ A **verdict** is PASS, PASS+NOTES or FAIL on a change, given by an agent that di
    - **Accepted trade-off**: real, and cheaper to accept than to fix. State it in the report.
    - **Noise**: the verifier lacked context. Name the context it lacked.
 
+   Record every FAIL you sort as Contract unclear, Accepted trade-off or Noise: `node scripts/receipt.mjs override "<criterion>" --as <contract-unclear|trade-off|noise> --why "<reason>"`. The handoff's Attention section names each one, and `node scripts/gate.mjs handoff-complete` fails until it does.
+
    Stop after three rounds. A fourth round means the change or the contract is wrong, and the report says which.
 
-6. **Report** one table with a row per criterion: the criterion, PASS, FAIL or INCONCLUSIVE, the evidence path, and who verified. Under it: the neighbours driven and what each showed, the floor guard result, accepted trade-offs, and the overall verdict.
+6. **Report** one table with a row per criterion: the criterion, PASS, FAIL or INCONCLUSIVE, the evidence path, and who verified. Under it: the neighbours driven and what each showed, the floor guard result, accepted trade-offs, and the overall verdict. Then write the receipt from the verifier's `report.json`: `node scripts/receipt.mjs verdict <path to report.json>`, run in the checkout of the change, since receipts belong to the branch checked out there. A verdict run again after a fix keeps the overrides recorded in earlier rounds.
 
 ## Rules
 
@@ -33,7 +35,7 @@ A **verdict** is PASS, PASS+NOTES or FAIL on a change, given by an agent that di
 - **The surface has to match.** A UI criterion proven by a unit test alone is INCONCLUSIVE.
 - **A criterion about model output needs a deterministic proof**: the response parses against its schema, the expected tool is called, a refusal happens, a score over a fixed evaluation set holds its recorded number. A criterion that only a reader can judge is INCONCLUSIVE and goes to the user.
 - **A neighbour that broke fails the verdict** the same way a criterion does.
-- **Evidence is a path or a command with its output**, kept where the report says, and it survives cleanup.
+- **Evidence is a path or a command with its output**, kept where the report says, and it survives cleanup. A proof case's receipt is evidence. A screenshot without the action that led to it is not.
 - **The author never issues the verdict.** A subagent that cannot spawn a verifier reports "verdict owed" to its orchestrator.
-- **A verdict covers the commit it ran on.** Product code pushed after it needs a new verdict. Changes to tests, docs or lint config alone keep it.
-- **No `verify-<app>` skill**: the verifier uses the project's own run command, the report says the proof was improvised, and it recommends `/create-verification-skill`.
+- **A verdict covers the content it ran on.** Its receipt holds the tree id, and `node scripts/gate.mjs verdict-fresh` says whether product code changed since. Changes to tests, docs or checker config alone keep it.
+- **No verify guide**: the verifier uses the project's own run command, the report says the proof was improvised, and it recommends `/create-verification-skill`.

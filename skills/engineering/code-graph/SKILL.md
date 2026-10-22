@@ -20,7 +20,7 @@ It refreshes the graph, maps every changed line to the symbol that owns it, and 
 - **Exit 0**: use the reach. Name its source in your report: "from the code graph at `<short sha>`".
 - **Exit 2**: there is no usable graph, because graphify is missing or the refresh failed. Report "code graph stale, not used" and fall back to grep.
 
-When the repo has a `verify-<app>` skill, match the reached files and symbols to its feature map. A reached feature is one the verifier should drive.
+When the repo has a verify guide (`docs/agents/verify.md`), match the reached files and symbols to its feature map in `docs/agents/verify/features/`. A reached feature is one the verifier should drive.
 
 ## What the reach leaves out
 

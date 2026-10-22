@@ -10,7 +10,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
 1. Call the Skill tool with `writing-for-agents` for the writing style guide.
 
-2. Read `docs/agents/lessons.md` when the repo has one. Group its entries by kind. A kind with three or more entries is a candidate on its own, whatever this session did, and its fix is a check. When the user accepts that check, delete the entries it retires.
+2. Read `docs/agents/lessons.md` when the repo has one. Group its entries by kind. A kind with three or more entries, or a single `verifier miss`, is a candidate on its own, whatever this session did, and its fix is a check. When the user accepts that check, delete the entries it retires.
 
 3. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one.
 

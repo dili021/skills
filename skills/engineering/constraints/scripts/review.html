@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run review</title>
+<!-- One page for every run. review.mjs writes the data next to it: runs.js lists the runs, and
+     <branch>/review-data.js holds one run. Script tags load from file://, fetch would not. -->
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --text: #1c1917; --muted: #6b6560; --line: #e7e5e4;
+    --ok: #15803d; --ok-bg: #dcfce7; --bad: #b91c1c; --bad-bg: #fee2e2; --warn: #a16207; --warn-bg: #fef9c3;
+    --link: #1d4ed8; --code: #f5f5f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141312; --panel: #1c1b1a; --text: #e7e5e4; --muted: #a8a29e; --line: #2e2c2a;
+      --ok: #4ade80; --ok-bg: #12301d; --bad: #f87171; --bad-bg: #3a1515; --warn: #facc15; --warn-bg: #352d0b;
+      --link: #93c5fd; --code: #262422;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+  .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  nav { border-right: 1px solid var(--line); padding: 16px; background: var(--panel); }
+  nav h1 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 12px; }
+  nav a { display: block; padding: 8px 10px; border-radius: 6px; color: var(--text); text-decoration: none; margin-bottom: 4px; }
+  nav a.current { background: var(--code); }
+  nav small { display: block; color: var(--muted); font-size: 12px; }
+  main { padding: 24px 32px; max-width: 1100px; min-width: 0; }
+  h2 { font-size: 18px; margin: 32px 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  h2:first-of-type { margin-top: 8px; }
+  .head { margin-bottom: 20px; }
+  .head h1 { margin: 0 0 4px; font-size: 22px; word-break: break-word; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .ok { color: var(--ok); background: var(--ok-bg); }
+  .bad { color: var(--bad); background: var(--bad-bg); }
+  .warn { color: var(--warn); background: var(--warn-bg); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .scroll { overflow-x: auto; }
+  .md { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 20px; }
+  code, pre { background: var(--code); border-radius: 4px; font: 13px/1.45 ui-monospace, monospace; }
+  code { padding: 1px 4px; }
+  pre { padding: 10px; overflow-x: auto; }
+  a { color: var(--link); }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  figure img, figure video { width: 100%; border-radius: 4px; display: block; }
+  figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; word-break: break-all; }
+  .thumbs img { width: 120px; border-radius: 4px; margin: 2px 4px 2px 0; }
+  .empty { color: var(--muted); }
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; }
+    nav { border-right: 0; border-bottom: 1px solid var(--line); }
+    main { padding: 16px; }
+  }
+</style>
+<script src="runs.js"></script>
+</head>
+<body>
+<div class="layout">
+  <nav><h1>Runs</h1><div id="runs"></div></nav>
+  <main id="main"><p class="empty">No run data. Run <code>node scripts/review.mjs</code> on the branch.</p></main>
+</div>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const runs = window.RUNS || [];
+const badge = (text, kind) => `<span class="badge ${kind}">${esc(text)}</span>`;
+const resultKind = (r) => (/^PASS/.test(r) || r === 'ok' ? 'ok' : r === 'FAIL' || r === 'fail' ? 'bad' : 'warn');
+const classKind = (c) => (c === 'merge-ready' ? 'ok' : c === 'flawed' || c === 'blocked' ? 'bad' : 'warn');
+const href = (p) => p.split('/').map(encodeURIComponent).join('/');
+
+// Markdown subset: headings, lists, tables, code blocks, quotes, inline code, bold, italics, links.
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, u) => /^(https?:|\.|\/|#|[\w-]+\/)/.test(u) ? `<a href="${u}">${t}</a>` : m);
+}
+function markdown(src) {
+  const lines = src.replace(/\r/g, '').split('\n');
+  let out = '', i = 0;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^```/.test(l)) {
+      const body = [];
+      for (i++; i < lines.length && !/^```/.test(lines[i]); i++) body.push(lines[i]);
+      out += `<pre><code>${esc(body.join('\n'))}</code></pre>`; i++; continue;
+    }
+    const h = l.match(/^(#{1,6})\s+(.*)/);
+    if (h) { const n = Math.min(h[1].length + 2, 6); out += `<h${n}>${inline(h[2])}</h${n}>`; i++; continue; }
+    if (/^\s*\|/.test(l)) {
+      const rows = [];
+      for (; i < lines.length && /^\s*\|/.test(lines[i]); i++) rows.push(lines[i].trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
+      const body = rows.filter((r) => !r.every((c) => /^:?-+:?$/.test(c)));
+      const [head, ...rest] = body;
+      out += `<div class="scroll"><table><tr>${head.map((c) => `<th>${inline(c)}</th>`).join('')}</tr>${rest.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+      continue;
+    }
+    if (/^\s*([-*]|\d+\.)\s+/.test(l)) {
+      const ordered = /^\s*\d+\./.test(l), items = [];
+      for (; i < lines.length && (/^\s*([-*]|\d+\.)\s+/.test(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length)); i++) {
+        if (/^\s*([-*]|\d+\.)\s+/.test(lines[i])) items.push(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, ''));
+        else items[items.length - 1] += ' ' + lines[i].trim();
+      }
+      const tag = ordered ? 'ol' : 'ul';
+      out += `<${tag}>${items.map((t) => `<li>${inline(t)}</li>`).join('')}</${tag}>`; continue;
+    }
+    if (/^>\s?/.test(l)) {
+      const q = [];
+      for (; i < lines.length && /^>\s?/.test(lines[i]); i++) q.push(lines[i].replace(/^>\s?/, ''));
+      out += `<blockquote>${inline(q.join(' '))}</blockquote>`; continue;
+    }
+    if (!l.trim()) { i++; continue; }
+    const p = [];
+    for (; i < lines.length && lines[i].trim() && !/^(#{1,6}\s|```|\s*\||\s*([-*]|\d+\.)\s|>)/.test(lines[i]); i++) p.push(lines[i]);
+    out += `<p>${inline(p.join(' '))}</p>`;
+  }
+  return out;
+}
+
+function media(e) {
+  const cap = `<figcaption>${esc(e.path)}${e.from ? ' · ' + esc(e.from) : ''}${e.exists === false ? ' · missing' : ''}</figcaption>`;
+  if (e.type === 'image') return `<figure><a href="${href(e.path)}"><img src="${href(e.path)}" alt="${esc(e.path)}" loading="lazy"></a>${cap}</figure>`;
+  if (e.type === 'video') return `<figure><video src="${href(e.path)}" controls preload="metadata"></video>${cap}</figure>`;
+  return `<figure><a href="${href(e.path)}">${esc(e.path.split('/').pop())}</a>${cap}</figure>`;
+}
+
+function render(r) {
+  const v = r.verdict;
+  let html = `<div class="head"><h1>${esc(r.branch)}</h1>
+    <div class="meta">${r.class ? badge(r.class, classKind(r.class)) + ' · ' : ''}base ${esc(r.base || 'unknown')} · ${esc(new Date(r.at).toLocaleString())}${v ? ' · verdict ' + badge(v.overall, resultKind(v.overall)) : ''}</div></div>`;
+
+  html += `<h2>Gate</h2><div class="scroll"><table><tr><th>Verifier</th><th>Result</th><th>Why</th></tr>${r.gate.map((g) =>
+    `<tr><td>${esc(g.name)}</td><td>${badge(g.status, resultKind(g.status))}</td><td>${esc(g.reasons.join('; '))}</td></tr>`).join('')}</table></div>`;
+
+  html += `<h2>Handoff</h2>${r.handoff ? `<div class="md">${markdown(r.handoff)}</div>` : '<p class="empty">No HANDOFF.md for this run.</p>'}`;
+
+  if (v) {
+    const byPath = new Map(r.evidence.map((e) => [e.path, e]));
+    html += `<h2>Criteria</h2><div class="scroll"><table><tr><th>Criterion</th><th>Result</th><th>Observed</th><th>Evidence</th></tr>${v.criteria.map((c) =>
+      `<tr><td>${inline(c.criterion)}</td><td>${badge(c.result, resultKind(c.result))}</td><td>${inline(c.observed)}</td><td class="thumbs">${c.evidence.map((p) =>
+        (byPath.get(p)?.type ?? (/\.(png|jpe?g|gif|webp|svg)$/i.test(p) ? 'image' : 'file')) === 'image'
+          ? `<a href="${href(p)}"><img src="${href(p)}" alt="${esc(p)}" loading="lazy"></a>`
+          : `<a href="${href(p)}">${esc(p.split('/').pop())}</a>`).join(' ')}</td></tr>`).join('')}</table></div>`;
+    if (v.overrides.length) {
+      html += `<h2>FAILs the author sorted</h2><div class="scroll"><table><tr><th>Criterion</th><th>Sorted as</th><th>Why</th></tr>${v.overrides.map((o) =>
+        `<tr><td>${inline(o.criterion)}</td><td>${badge(o.as, 'warn')}</td><td>${inline(o.why)}</td></tr>`).join('')}</table></div>`;
+    }
+    if (v.outside.length) html += `<h2>Outside the contract</h2><ul>${v.outside.map((o) => `<li>${inline(typeof o === 'string' ? o : JSON.stringify(o))}</li>`).join('')}</ul>`;
+  }
+
+  const shown = r.evidence.filter((e) => e.type !== 'file' || e.from === 'evidence folder');
+  html += `<h2>Evidence</h2>${shown.length ? `<div class="gallery">${shown.map(media).join('')}</div>` : '<p class="empty">No evidence files.</p>'}`;
+
+  html += `<h2>Receipts</h2>${r.receipts.length ? `<div class="scroll"><table><tr><th>Kind</th><th>Name</th><th>Exit</th><th>Covers current code</th><th>Command</th><th>At</th></tr>${r.receipts.map((x) =>
+    `<tr><td>${esc(x.kind)}</td><td>${esc(x.name)}</td><td>${badge(x.exit, x.exit === 0 ? 'ok' : 'bad')}</td><td>${badge(x.fresh ? 'yes' : 'no', x.fresh ? 'ok' : 'warn')}</td><td><code>${esc(x.command)}</code></td><td>${esc(new Date(x.at).toLocaleString())}</td></tr>`).join('')}</table></div>` : '<p class="empty">No receipts.</p>'}`;
+
+  if (r.decisions) {
+    html += `<h2>Decision log</h2><div class="scroll"><table><tr>${r.decisions.header.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${r.decisions.rows.map((row) =>
+      `<tr>${row.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+  }
+  document.getElementById('main').innerHTML = html;
+}
+
+function show(branch) {
+  document.getElementById('runs').innerHTML = runs.length ? runs.map((x) =>
+    `<a href="#${esc(x.branch)}" class="${x.branch === branch ? 'current' : ''}">${esc(x.branch)}<small>${x.class ? esc(x.class) + ' · ' : ''}${esc(new Date(x.at).toLocaleDateString())}</small></a>`).join('')
+    : '<p class="empty">No runs yet.</p>';
+  if (!branch) return;
+  document.getElementById('data')?.remove();
+  window.REVIEW = null;
+  const s = document.createElement('script');
+  s.id = 'data';
+  s.src = `${href(branch)}/review-data.js?${Date.now()}`;
+  s.onload = () => (window.REVIEW ? render(window.REVIEW) : null);
+  s.onerror = () => { document.getElementById('main').innerHTML = `<p class="empty">No data for ${esc(branch)}.</p>`; };
+  document.body.appendChild(s);
+}
+
+const current = () => decodeURIComponent(location.hash.slice(1)) || runs[0]?.branch;
+window.addEventListener('hashchange', () => show(current()));
+show(current());
+</script>
+</body>
+</html>

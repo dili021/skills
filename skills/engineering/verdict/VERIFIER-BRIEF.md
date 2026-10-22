@@ -18,7 +18,7 @@ You are verifying a change you did not write. Assume the author is overconfident
 
 **Refs:** base `<base ref>`, head `<head ref>`, checked out at `<worktree path>`.
 
-**How to run the app:** <path to the `verify-<app>` skill, or the launch command, the port, the seed data and the test account>.
+**How to run the app:** <`verify/cli` and its guide `docs/agents/verify.md`, or the launch command, the port, the seed data and the test account>. Where a criterion's Proven by names a proof case, run `verify/cli prove <case>` and drive the path yourself as well.
 
 **How to work:**
 
@@ -35,9 +35,15 @@ You are verifying a change you did not write. Assume the author is overconfident
 - **Outside the contract**: anything that broke or looked wrong on the way, with evidence.
 - **Overall**: PASS, PASS+NOTES or FAIL.
 
+Write the same fields to `.verify/evidence/<branch>/verdict-<round>/report.json` in the primary checkout (the first path `git worktree list --porcelain` prints), so it outlives a worktree. Keep your evidence beside it as files, and give evidence paths relative to that file. Command output counts as evidence once it is saved to a file:
+
+```json
+{ "overall": "PASS", "criteria": [{ "criterion": "...", "result": "PASS", "evidence": ["after-reload.png"], "observed": "..." }], "outside": ["..."] }
+```
+
 </verifier-brief>
 
 ## Filling it in
 
 - Copy the criteria and their **Proven by** lines verbatim from the ticket. Rewording a criterion is how a contract drifts.
-- The refs come from git, the run instructions from the `verify-<app>` skill. Leave out your own account of what the change does.
+- The refs come from git, the run instructions from the verify guide. Leave out your own account of what the change does.

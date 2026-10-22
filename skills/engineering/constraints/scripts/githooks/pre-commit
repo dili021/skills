@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Finishes what pre-merge-commit starts: a merge into the base branch that stopped on a conflict is
+# completed by `git commit`, which runs this hook and not pre-merge-commit. Other commits pass.
+. "$(dirname "$0")/bar.conf"
+# A checkout with Windows line endings leaves a carriage return on each value.
+BASE="${BASE%$'\r'}"; CHECK="${CHECK%$'\r'}"
+git rev-parse -q --verify MERGE_HEAD >/dev/null || exit 0
+[ "$(git symbolic-ref --short -q HEAD)" = "$BASE" ] || exit 0
+echo "pre-commit: running check on the merge result: $CHECK" >&2
+# Git exports GIT_DIR and GIT_INDEX_FILE to hooks. A check that runs git in a scratch repo, as test
+# suites do, would act on this repo instead. The hook already runs at the top of the work tree.
+unset GIT_DIR GIT_INDEX_FILE
+if ! eval "$CHECK"; then
+  echo "pre-commit: check failed on the merge result, so the merge commit was not made." >&2
+  exit 1
+fi

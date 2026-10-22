@@ -16,12 +16,12 @@ problem → contract → run → proof → merge-ready PR → your verdict → l
 
 ## Once per repo
 
-**`/setup-dili-skills`** configures a repo for everything below: the issue tracker, the triage labels, where `GLOSSARY.md` and ADRs live, the bar (`CONSTRAINTS.md`, its `check` command and the floor guard), the project's `verify-<app>` skill, and `docs/agents/lessons.md`. It ends with a readiness table. Run it first. Run it again to finish a step that was blocked.
+**`/setup-dili-skills`** configures a repo for everything below: the issue tracker, the triage labels, where `GLOSSARY.md` and ADRs live, the bar (`CONSTRAINTS.md`, its `check` command, the floor guard, receipts and the gate), the verify CLI, and `docs/agents/lessons.md`. It asks whether the setup is for the team or for you alone, and turns the flow on for this clone only; `/setup-dili-skills off` turns it off. It ends with a readiness table. Run it first. Run it again to finish a step that was blocked, or in a new clone.
 
 The two heavy steps are skills of their own, for running again later:
 
 - **`/constraints`** writes the bar: rules with numbers, each naming the command that checks it.
-- **`/create-verification-skill`** generates `verify-<app>`: how to launch the app, drive it as a user and capture evidence, with a map of user-facing features. **`/maintain-verification-skill`** keeps that map matching the app, and promotes repeated driving scripts into helper commands. Run it weekly.
+- **`/create-verification-skill`** generates the verify CLI (`verify/cli`) and its guide (`docs/agents/verify.md`): how to launch the app, drive it as a user, prove a behaviour and capture evidence, with a map of user-facing features. **`/maintain-verification-skill`** keeps that map matching the app, and promotes repeated driving scripts into helper commands. Run it weekly.
 
 ## The flow
 
@@ -30,7 +30,7 @@ The two heavy steps are skills of their own, for running again later:
 - **A small problem that `git revert` undoes** (a bug with a screenshot, a UI fix): straight to **`/afk`**. It reproduces the problem, writes its own acceptance criteria and builds. You react to the criteria afterwards.
 - **An idea with decisions in it**: **`/grill-with-docs`** interviews you and keeps what it learns in `GLOSSARY.md` and ADRs. **`/grill-with-ui`** is the same interview in a browser page. Bring only product and preference calls to the interview. A question whose answer is a fact goes to **`/prototype`** or to the agent's own experiment.
 - **Something too big to see across**: **`/wayfinder`** charts a map of decision tickets and resolves them one at a time. It produces decisions, then hands off to step 2.
-- **Issues you did not write**: **`/triage`** moves them through the triage roles and reproduces each claim, with `verify-<app>` when there is one.
+- **Issues you did not write**: **`/triage`** moves them through the triage roles and reproduces each claim, with `verify/cli` when there is one.
 - **A hard bug**: **`/diagnosing-bugs`** builds a loop that goes red on the bug before it theorises.
 
 ### 2. The contract
@@ -60,7 +60,7 @@ You merge. No skill here merges.
 
 ### 6. The lessons
 
-**`/retro`** looks back over a session and proposes changes to the agent's environment: a lint rule, a row in `CONSTRAINTS.md`, a line in the verify skill. It also reads `docs/agents/lessons.md`, the buffer `/afk` fills with mistakes that may recur, and proposes a check once one kind of mistake has three entries.
+**`/retro`** looks back over a session and proposes changes to the agent's environment: a lint rule, a row in `CONSTRAINTS.md`, a proof case or a line in the verify guide. It also reads `docs/agents/lessons.md`, the buffer `/afk` fills with mistakes that may recur, and proposes a check once one kind of mistake has three entries.
 
 ## Context between phases
 
