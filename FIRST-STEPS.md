@@ -61,6 +61,8 @@ The same size of task, a different one. For a small problem (one ticket, no sche
 
 When I come back, open the review page the reply names, `.afk/review.html#<branch>`, and read in this order: the run's class and the gate, the Attention section, the criteria with their evidence. The diff comes last, and only where Attention points. Criteria the agent wrote are marked `assumed` in Attention. A wrong one costs another round, so correct it there.
 
+Then walk it myself at the URL the reply gives after the review page: the running app with a `/walkthrough` panel listing each flow, its steps, what I should see and the verifier's evidence, and the decisions I may overturn next to the step they touch. I mark each flow Pass, Fail or Skip and each decision Keep or Overturn, press Finish and tell the agent. Nothing from it is committed.
+
 Repeat until three runs in a row come back merge-ready with nothing in Attention that surprised me. Then move to ticket sets with `/lanes` under `/afk`.
 
 ## 6. Bring it to the team

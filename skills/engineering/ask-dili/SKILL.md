@@ -56,6 +56,8 @@ To drive it yourself, call **`/implement`** or **`/lanes`** directly. Both build
 
 **`/pr`** shapes the PR body: the smallest visual that shows the change, before and after evidence, and whether the merge is a one-way or a two-way door. `/afk` puts an **Attention** section above it. In a repo that merges locally, the same body becomes a handoff note in `.afk/<branch>/HANDOFF.md` and the run ends on a branch. Read in this order: the run's class, Attention, the verdict table, the evidence. The diff comes last, where Attention points.
 
+**`/walkthrough`** is your own pass. A proxy puts a panel over the running app with each flow to try, its steps, what you should see and the verifier's evidence, plus the decisions you may want to overturn, next to the step they touch. Nothing is committed; your results go back to the agent and onto the review page. `/afk` starts it at the end of a run; call it yourself for any branch.
+
 You merge. No skill here merges.
 
 ### 6. The lessons

@@ -154,6 +154,17 @@ function render(r) {
     if (v.outside.length) html += `<h2>Outside the contract</h2><ul>${v.outside.map((o) => `<li>${inline(typeof o === 'string' ? o : JSON.stringify(o))}</li>`).join('')}</ul>`;
   }
 
+  const w = r.walkthrough;
+  if (w) {
+    const kind = (x) => ({ pass: 'ok', keep: 'ok', fail: 'bad', overturn: 'bad' })[x] ?? 'warn';
+    html += `<h2>Your walkthrough ${w.finished ? '' : '(not finished)'}</h2><div class="scroll"><table><tr><th>Flow</th><th>Result</th><th>Note</th></tr>${w.flows.map((f) =>
+      `<tr><td>${esc(f.id)} ${inline(f.title)}</td><td>${badge(f.result, kind(f.result))}</td><td>${inline(f.note)}</td></tr>`).join('')}</table></div>`;
+    if (w.notes.length) {
+      html += `<h2>Decisions you answered</h2><div class="scroll"><table><tr><th>Decision</th><th>Answer</th><th>Note</th></tr>${w.notes.map((n) =>
+        `<tr><td>${badge(n.kind, 'warn')} ${inline(n.text)}</td><td>${badge(n.answer, kind(n.answer))}</td><td>${inline(n.note)}</td></tr>`).join('')}</table></div>`;
+    }
+  }
+
   const shown = r.evidence.filter((e) => e.type !== 'file' || e.from === 'evidence folder');
   html += `<h2>Evidence</h2>${shown.length ? `<div class="gallery">${shown.map(media).join('')}</div>` : '<p class="empty">No evidence files.</p>'}`;
 

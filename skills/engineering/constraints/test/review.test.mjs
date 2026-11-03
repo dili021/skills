@@ -24,6 +24,8 @@ test('the page data carries the handoff, the verdict with its evidence, receipts
   r.node('receipt.mjs', ['verdict', join(run, 'report.json')]);
   r.node('receipt.mjs', ['run', 'check', 'check', '--', process.execPath, '-e', '0']);
   writeFileSync(join(run, 'HANDOFF.md'), '# Status survives reload\n\n## Attention\n\n- none\n');
+  writeFileSync(join(run, 'walkthrough.json'), JSON.stringify({ notes: [{ id: 'D1', kind: 'assumed', text: 'status in the database' }], flows: [{ id: 'F1', title: 'Status survives reload', steps: ['Reload'], expect: ['Confirmed'] }] }));
+  writeFileSync(join(run, 'walkthrough-results.json'), JSON.stringify({ finished: true, flows: { F1: { result: 'pass' } }, notes: { D1: { answer: 'overturn', note: 'keep it in memory' } } }));
   writeFileSync(join(run, 'decisions.tsv'), 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-22T10:00:00Z\tbuild\tkept the status in the database\tit was in memory only\tsrc/app.ts\ttests green\n');
 
   const out = r.node('review.mjs', ['--class', 'merge-ready', '--base', 'main']);
@@ -38,6 +40,9 @@ test('the page data carries the handoff, the verdict with its evidence, receipts
   assert.equal(data.verdict.outside[0], 'the list page loads slower');
   assert.deepEqual(data.evidence.map((e) => e.type).sort(), ['image', 'video']);
   assert.equal(data.gate.find((g) => g.name === 'check-green').status, 'ok');
+  assert.deepEqual(data.walkthrough.flows, [{ id: 'F1', title: 'Status survives reload', result: 'pass', note: '' }]);
+  assert.deepEqual(data.walkthrough.notes.map((n) => [n.id, n.answer, n.note]), [['D1', 'overturn', 'keep it in memory']]);
+  assert.equal(data.walkthrough.finished, true);
   assert.equal(data.receipts.find((x) => x.kind === 'check').fresh, true);
   assert.equal(data.decisions.rows[0][2], 'kept the status in the database');
 

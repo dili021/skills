@@ -78,6 +78,27 @@ export function buildReview({ runClass = null, base = baseFromHandoff() } = {}) 
     receipts: receipts.map((r) => ({ kind: r.kind, name: r.name, exit: r.exit, fresh: fresh(r), at: r.at, command: r.command })),
     evidence: [...evidence.values()],
     decisions: tsv(readIf(join(runDir, 'decisions.tsv'))),
+    walkthrough: walkthroughOf(runDir),
+  };
+}
+
+// The person's own pass (/walkthrough): each flow and note with what they answered, or null
+// when the run has no checklist.
+function walkthroughOf(runDir) {
+  const parse = (f) => { const t = readIf(join(runDir, f)); try { return t ? JSON.parse(t) : null; } catch { return null; } };
+  const list = parse('walkthrough.json');
+  if (!list) return null;
+  const results = parse('walkthrough-results.json') ?? {};
+  const notes = [...(list.notes ?? [])];
+  for (const f of list.flows ?? []) {
+    notes.push(...(f.notes ?? []));
+    for (const s of f.steps ?? []) if (s && typeof s === 'object') notes.push(...(s.notes ?? []));
+  }
+  return {
+    finished: !!results.finished,
+    updatedAt: results.updatedAt ?? null,
+    flows: (list.flows ?? []).map((f) => ({ id: f.id, title: f.title, result: results.flows?.[f.id]?.result ?? 'open', note: results.flows?.[f.id]?.note ?? '' })),
+    notes: notes.map((n) => ({ id: n.id, kind: n.kind, text: n.text, answer: results.notes?.[n.id]?.answer ?? 'open', note: results.notes?.[n.id]?.note ?? '' })),
   };
 }
 
