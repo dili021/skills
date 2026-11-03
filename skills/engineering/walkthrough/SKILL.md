@@ -24,7 +24,7 @@ Nothing touches the app's repo. A proxy in front of the running app adds the pan
 
    Run `node $SKILL/walkthrough.mjs check`. Done when it exits 0, and every visible criterion and every assumed decision appears exactly once.
 
-3. **Serve it.** The app must be running: reuse one the user already runs, else start it the way the project's verify guide says. Start `node $SKILL/walkthrough.mjs serve --app <app url> [--port 4400]` in the background; it prints the URL. Hand the person that URL, with one line: what to sign in as first, and Alt+W for the panel. In an `/afk` reply, put the URL right after the review page.
+3. **Serve it.** The app must be running: reuse one the user already runs, else start it the way the project's verify guide says. Start `node $SKILL/walkthrough.mjs serve --app <app url> [--port 4400]` in the background; it prints the URL. Hand the person that URL, with one line: what to sign in as first, and that hovering the Walkthrough button opens the panel, a click pins it, and Alt+W pins it from the keyboard. In an `/afk` reply, put the URL right after the review page.
 
 4. **Read the results when the person says they are done.** `node $SKILL/walkthrough.mjs results` lists the counts, each failed, skipped or commented flow, and each overturned or commented decision. Answer each one:
    - A **fail**: reproduce it, then fix it on the branch (product code after a verdict needs a new verdict) or file it as a ticket, whichever the person picks.
@@ -69,6 +69,7 @@ Nothing touches the app's repo. A proxy in front of the running app adds the pan
 
 ## Gotchas
 
+- The panel opens on hover over its button and closes once the pointer leaves the button and the panel, except while a note is being typed. A click pins it; Pin in its header and ✕ release it. The pinned state survives a reload.
 - The panel's Go opens a route with the History API, so a single-page app keeps its state. "With a reload" does a full page load.
 - The proxy sends the app its own Host header, so dev servers that check it answer. It passes WebSocket upgrades through, so live reload keeps working.
 - A Service Worker mock (MSW) works through the proxy: the proxy's origin is the page's origin, so the worker registers there. That origin has its own storage: data the person created on the app's own port is not there.

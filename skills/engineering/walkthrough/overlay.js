@@ -1,6 +1,6 @@
 // The walkthrough panel. walkthrough.mjs adds this script to every page of the app it proxies.
 // It lives in a shadow root, so the app's styles and the panel's never meet, and it talks only to
-// the proxy's /__walkthrough/ routes. Alt+W opens and closes it.
+// the proxy's /__walkthrough/ routes. Hovering its button opens it, a click or Alt+W pins it, Esc closes it.
 (() => {
   if (customElements.get('dili-walkthrough')) return;
   const API = '/__walkthrough/';
@@ -24,6 +24,11 @@
       background: #fff; color: #111827; border-left: 1px solid #e5e7eb; box-shadow: -8px 0 30px rgba(0,0,0,.12); font-size: 13px; line-height: 1.45; }
     header { padding: 12px 14px 0; border-bottom: 1px solid #e5e7eb; }
     .top { display: flex; align-items: center; gap: 8px; }
+    .panel[hidden] { display: none; }
+    .panel.peek { box-shadow: -12px 0 40px rgba(0,0,0,.18); }
+    .launch[aria-pressed="true"] { background: #2563eb; }
+    .pin { border: 1px solid #d1d5db; background: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .pin[aria-pressed="true"] { background: #2563eb; border-color: #2563eb; color: #fff; }
     .top h1 { flex: 1; margin: 0; font-size: 14px; font-weight: 700; }
     .top small { color: #6b7280; font-weight: 500; }
     .x { border: 0; background: #f3f4f6; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px; }
@@ -80,7 +85,11 @@
       this.root = this.attachShadow({ mode: 'open' });
       this.data = null;
       this.results = { flows: {}, notes: {}, finished: false };
-      this.open = local.get('open', true);
+      // Pinned stays open until unpinned. Peek is the hover preview: it opens over the launcher
+      // and closes once the pointer has left both the launcher and the panel.
+      this.pinned = local.get('pinned', false);
+      this.peek = false;
+      this.hideTimer = null;
       this.tab = local.get('tab', 'flows');
       this.expanded = new Set(local.get('expanded', []));
       this.status = '';
@@ -88,10 +97,20 @@
     }
 
     async connectedCallback() {
+      // Built once; later renders replace only the panel's content, so the element under the
+      // pointer survives and hover keeps working.
+      this.root.innerHTML = `<style>${CSS}</style><button class="launch" data-act="pin"></button><div class="panel" role="complementary" aria-label="Walkthrough" hidden></div>`;
+      this.launcher = this.root.querySelector('.launch');
+      this.panel = this.root.querySelector('.panel');
+      for (const el of [this.launcher, this.panel]) {
+        el.addEventListener('pointerenter', () => this.showPeek());
+        el.addEventListener('pointerleave', () => this.hidePeekSoon());
+      }
       this.root.addEventListener('click', (e) => this.onClick(e));
       this.root.addEventListener('input', (e) => this.onInput(e));
       window.addEventListener('keydown', (e) => {
-        if (e.altKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); this.toggle(); }
+        if (e.altKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); this.setPinned(!this.pinned); }
+        else if (e.key === 'Escape' && (this.pinned || this.peek)) this.close();
       });
       try {
         const res = await fetch(API + 'data', { cache: 'no-store' });
@@ -108,10 +127,39 @@
     get flows() { return this.data?.flows ?? []; }
     get done() { return this.flows.filter((f) => this.results.flows[f.id]?.result).length; }
 
-    toggle() {
-      this.open = !this.open;
-      local.set('open', this.open);
+    get visible() { return !!this.data && (this.pinned || this.peek); }
+
+    setPinned(pinned) {
+      this.pinned = pinned;
+      this.peek = false;
+      local.set('pinned', pinned);
       this.render();
+    }
+
+    close() {
+      this.pinned = false;
+      this.peek = false;
+      local.set('pinned', false);
+      this.render();
+    }
+
+    showPeek() {
+      clearTimeout(this.hideTimer);
+      if (this.pinned || this.peek || !this.data) return;
+      this.peek = true;
+      this.render();
+    }
+
+    /** A short delay, so moving from the launcher to the panel does not close it on the way. */
+    hidePeekSoon() {
+      clearTimeout(this.hideTimer);
+      if (this.pinned) return;
+      this.hideTimer = setTimeout(() => {
+        // Typing a note keeps the preview open, so a stray pointer never loses the text box.
+        if (this.pinned || this.root.activeElement?.tagName === 'TEXTAREA') return;
+        this.peek = false;
+        this.render();
+      }, 250);
     }
 
     save(finished = this.results.finished) {
@@ -142,7 +190,8 @@
       const el = e.target.closest('[data-act]');
       if (!el) return;
       const { act, id } = el.dataset;
-      if (act === 'toggle') this.toggle();
+      if (act === 'pin') this.setPinned(!this.pinned);
+      else if (act === 'close') this.close();
       else if (act === 'tab') { this.tab = el.dataset.tab; local.set('tab', this.tab); this.render(); }
       else if (act === 'expand') {
         if (this.expanded.has(id)) this.expanded.delete(id); else this.expanded.add(id);
@@ -252,19 +301,23 @@
 
     render() {
       const total = this.flows.length;
+      this.launcher.innerHTML = this.data ? `Walkthrough <b>${this.done}/${total}</b>` : 'Walkthrough <b>none</b>';
+      this.launcher.title = this.data ? 'Hover to look, click to pin (Alt+W)' : (this.status || 'No walkthrough.json for this run');
+      this.launcher.setAttribute('aria-expanded', String(this.visible));
+      this.launcher.setAttribute('aria-pressed', String(this.pinned));
+      this.panel.hidden = !this.visible;
+      this.panel.classList.toggle('peek', this.peek && !this.pinned);
+      if (!this.visible) return;
+
       const count = (k) => this.flows.filter((f) => this.results.flows[f.id]?.result === k).length;
-      const launcher = `<button class="launch" data-act="toggle" aria-expanded="${this.open}">Walkthrough <b>${this.done}/${total}</b></button>`;
-      if (!this.open || !this.data) {
-        this.root.innerHTML = `<style>${CSS}</style>${this.data ? launcher : `<button class="launch" data-act="toggle" title="${esc(this.status || 'No walkthrough.json for this run')}">Walkthrough <b>none</b></button>`}`;
-        return;
-      }
       const pct = (n) => (total ? (100 * n) / total : 0);
       const globalNotes = (this.data.notes ?? []).length;
-      this.root.innerHTML = `<style>${CSS}</style>
-        <div class="panel" role="complementary" aria-label="Walkthrough">
+      const scrolled = this.panel.querySelector('main')?.scrollTop ?? 0;
+      this.panel.innerHTML = `
           <header>
             <div class="top"><h1>${esc(this.data.title ?? 'Walkthrough')} <small>${this.done}/${total}</small></h1>
-              <button class="x" data-act="toggle" aria-label="Close the walkthrough">✕</button></div>
+              <button class="pin" data-act="pin" aria-pressed="${this.pinned}" title="${this.pinned ? 'Unpin: close when the pointer leaves' : 'Pin: keep it open'}">${this.pinned ? 'Pinned' : 'Pin'}</button>
+              <button class="x" data-act="close" aria-label="Close the walkthrough">✕</button></div>
             <div class="bar"><i style="width:${pct(count('pass'))}%;background:#16a34a"></i><i style="width:${pct(count('fail'))}%;background:#dc2626"></i><i style="width:${pct(count('skip'))}%;background:#9ca3af"></i></div>
             <div class="tabs" role="tablist">
               <button role="tab" data-act="tab" data-tab="flows" aria-selected="${this.tab === 'flows'}">Flows (${total})</button>
@@ -273,8 +326,9 @@
           </header>
           <main>${this.tab === 'notes' ? this.notesTab() : this.flowsTab()}</main>
           <footer><span class="status">${esc(this.status || (this.results.finished ? 'Finished.' : ''))}</span>
-            <button class="finish" data-act="finish">Finish</button></footer>
-        </div>`;
+            <button class="finish" data-act="finish">Finish</button></footer>`;
+      const main = this.panel.querySelector('main');
+      if (main) main.scrollTop = scrolled;
     }
   }
 

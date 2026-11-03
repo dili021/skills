@@ -251,7 +251,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!existsSync(file)) { console.error(`walkthrough: no ${file}; write it first`); process.exit(1); }
     const port = Number(opt('--port') ?? 4400);
     startProxy({ app, port, runDir }).then(
-      () => console.log(`walkthrough: http://localhost:${port} (the app at ${app}, with the panel; Alt+W toggles it)`),
+      () => console.log(`walkthrough: http://localhost:${port} (the app at ${app}, with the panel: hover its button to look, click to pin, Alt+W)`),
       (e) => { console.error(`walkthrough: could not listen on ${port}: ${e.code ?? e.message}`); process.exit(2); },
     );
   } else if (cmd === 'results') {
