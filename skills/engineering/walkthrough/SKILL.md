@@ -18,7 +18,7 @@ Nothing touches the app's repo. A proxy in front of the running app adds the pan
 2. **Write `.afk/<branch>/walkthrough.json`** (schema below).
    - One flow per acceptance criterion a person can see in the app, grouped by ticket, then one per neighbour the verdict drove. A criterion proven only by a command (a green `check`, a build's output) stays with the gate.
    - Steps are what a person does in the browser, in the app's words: the button names and labels as shown, starting from the flow's `route` and the account in `as`.
-   - `expect` is what they should see when it works: text on screen, a status, a URL.
+   - `expect` is what they should see when it works: text on screen, a status, a URL. Put it on the step after which it shows, so the panel prints it under that step; the flow's own `expect` is for what holds only at the end.
    - `evidence` names the verifier's screenshots and videos for that flow, relative to the run folder, so the person can compare.
    - **Notes** carry what the person may want to challenge: each assumed decision, accepted trade-off, open question and process slip from the handoff and the decision log. Put a note on the step it changes, else on its flow, else in the run-wide `notes` list.
 
@@ -53,9 +53,9 @@ Nothing touches the app's repo. A proxy in front of the running app adds the pan
         { "do": "In the second tab, click Edit, rename to \"Lakeview B\" and save", "notes": [
           { "id": "D9", "kind": "assumed", "text": "Two tabs stand in for two people: the mock keeps data per browser.", "ref": "decisions #9" }
         ] },
-        "Back in the first tab, click Edit, type \"Lakeview A\" and save"
+        { "do": "Back in the first tab, click Edit, type \"Lakeview A\" and save", "expect": ["\"Someone else changed this\" above the form", "Your \"Lakeview A\" still in the field"] },
+        { "do": "Click Reload in the message", "expect": ["The field shows \"Lakeview B\""] }
       ],
-      "expect": ["\"Someone else changed this\" above the form", "Your \"Lakeview A\" still in the field", "Reload shows \"Lakeview B\""],
       "evidence": ["evidence/verdict/v-t05-two-tab-conflict/03-tab-a-conflict.png"],
       "notes": []
     }
@@ -63,7 +63,8 @@ Nothing touches the app's repo. A proxy in front of the running app adds the pan
 }
 ```
 
-- Required: `flows` (non-empty); per flow `id`, `title`, `steps` (strings, or `{ "do", "notes" }` for a step with notes), `expect`. Optional: `title`, `notes`, and per flow `group`, `as`, `route` (starts with `/`), `evidence`, `notes`.
+- Required: `flows` (non-empty); per flow `id`, `title`, `steps` (strings, or `{ "do", "expect", "notes" }`), and at least one `expect`, on a step or on the flow. Optional: `title`, `notes`, and per flow `group`, `as`, `route` (starts with `/`), `expect` (what holds once the whole flow is done), `evidence`, `notes`.
+- The panel numbers the cards 1 to N in the order shown, so the person can say "flow 6". Keep `id` stable: results are stored by it.
 - A note needs `id`, `kind` and `text`; `ref` points back to the record. Every id, flow or note, is unique. Kinds in use: `assumed`, `trade-off`, `question`, `decision`, `slip`.
 - The results land in `walkthrough-results.json` beside it: `{ "finished", "updatedAt", "flows": { "<id>": { "result", "note" } }, "notes": { "<id>": { "answer": "keep|overturn", "note" } } }`.
 

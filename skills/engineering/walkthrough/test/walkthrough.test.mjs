@@ -135,10 +135,17 @@ test('check names every problem in a checklist', () => {
     ],
   };
   const problems = validate(bad, run);
-  for (const want of ['evidence not found: evidence/missing.png', 'duplicate id', '"title"', 'step 1 must be', '"expect"', '"route" must start with /', 'note F1: duplicate id']) {
+  for (const want of ['evidence not found: evidence/missing.png', 'duplicate id', '"title"', 'step 1 must be', '"expect" must be a non-empty array', 'needs at least one "expect"', '"route" must start with /', 'note F1: duplicate id']) {
     assert.ok(problems.some((p) => p.includes(want)), `missing: ${want}\n${problems.join('\n')}`);
   }
   assert.deepEqual(validate({ flows: [] }, run), ['"flows" must be a non-empty array']);
+});
+
+test('an expect can sit on the step it follows instead of the flow', () => {
+  const onSteps = { flows: [{ id: 'S1', title: 'Rename', steps: [{ do: 'Click Edit', expect: ['The dialog opens'] }, { do: 'Save', expect: ['The new name shows'] }] }] };
+  assert.deepEqual(validate(onSteps, run), []);
+  const none = { flows: [{ id: 'S2', title: 'Nothing to see', steps: ['Click', { do: 'Save', expect: [] }] }] };
+  assert.deepEqual(validate(none, run), ['flow S2 step 2: "expect" must be a non-empty array of strings', 'flow S2: needs at least one "expect", on a step or on the flow']);
 });
 
 test('adds the script once, also to a page without a head', () => {

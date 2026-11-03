@@ -44,7 +44,12 @@
     .flow > button.head:hover { background: #f9fafb; }
     .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; background: #d1d5db; }
     .dot.pass { background: #16a34a; } .dot.fail { background: #dc2626; } .dot.skip { background: #9ca3af; }
-    .id { color: #6b7280; font-variant-numeric: tabular-nums; margin-right: 4px; }
+    .num { flex: none; min-width: 22px; font-weight: 700; color: #374151; font-variant-numeric: tabular-nums; }
+    .id { color: #9ca3af; font-size: 11px; font-variant-numeric: tabular-nums; margin-left: 4px; white-space: nowrap; }
+    .see { margin: 4px 0 6px; padding: 4px 8px; border-left: 3px solid #16a34a; background: #f0fdf4; border-radius: 0 6px 6px 0; }
+    .see > span { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #166534; }
+    .see ul { margin: 2px 0 0; padding-left: 16px; }
+    .see li { margin: 1px 0; }
     .body { padding: 0 12px 12px; border-top: 1px solid #f3f4f6; }
     .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 4px; color: #374151; }
     .meta code { background: #f3f4f6; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
@@ -203,6 +208,11 @@
         const current = this.results.flows[id] ?? {};
         const result = current.result === el.dataset.result ? undefined : el.dataset.result;
         this.results.flows[id] = { ...current, result, at: new Date().toISOString() };
+        // A result closes the card; clearing one leaves it open to try again.
+        if (result) {
+          this.expanded.delete(id);
+          local.set('expanded', [...this.expanded]);
+        }
         this.save();
         this.render();
       } else if (act === 'answer') {
@@ -253,12 +263,19 @@
       return `<div class="sub">The verifier's evidence</div><div class="ev">${items.join('')}</div>`;
     }
 
-    flow(f) {
+    /** What to see after a step, shown under it. */
+    see(expect, label = 'You should see') {
+      if (!expect?.length) return '';
+      return `<div class="see"><span>${label}</span><ul>${expect.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+    }
+
+    flow(f, n) {
       const r = this.results.flows[f.id] ?? {};
       const open = this.expanded.has(f.id);
       const steps = f.steps.map((s) => (typeof s === 'string'
         ? `<li>${esc(s)}</li>`
-        : `<li>${esc(s.do)}${(s.notes ?? []).map((n) => this.note(n)).join('')}</li>`)).join('');
+        : `<li>${esc(s.do)}${this.see(s.expect)}${(s.notes ?? []).map((note) => this.note(note)).join('')}</li>`)).join('');
+      const onSteps = f.steps.some((s) => typeof s === 'object' && s?.expect?.length);
       const body = open ? `<div class="body">
         <div class="meta">
           ${f.as ? `<span>Sign in as <b>${esc(f.as)}</b></span>` : ''}
@@ -267,15 +284,15 @@
             <button class="link" data-act="reload" data-route="${esc(f.route)}">with a reload</button>` : ''}
         </div>
         <div class="sub">Steps</div><ol>${steps}</ol>
-        <div class="sub">You should see</div><ul>${f.expect.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-        ${(f.notes ?? []).length ? `<div class="sub">Decisions behind this flow</div>${f.notes.map((n) => this.note(n)).join('')}` : ''}
+        ${this.see(f.expect, onSteps ? 'In the end' : 'You should see')}
+        ${(f.notes ?? []).length ? `<div class="sub">Decisions behind this flow</div>${f.notes.map((note) => this.note(note)).join('')}` : ''}
         ${this.evidence(f.evidence)}
+        <textarea data-flow-note="${esc(f.id)}" placeholder="What you saw (write it before Fail)">${esc(r.note ?? '')}</textarea>
         <div class="results">${Object.entries(RESULT_LABELS).map(([k, label]) =>
           `<button data-act="result" data-id="${esc(f.id)}" data-result="${k}" aria-pressed="${String(r.result === k)}">${label}</button>`).join('')}</div>
-        <textarea data-flow-note="${esc(f.id)}" placeholder="What you saw (needed for a fail)">${esc(r.note ?? '')}</textarea>
       </div>` : '';
       return `<section class="flow"><button class="head" data-act="expand" data-id="${esc(f.id)}" aria-expanded="${open}">
-        <span class="dot ${esc(r.result ?? '')}"></span><span><span class="id">${esc(f.id)}</span>${esc(f.title)}</span></button>${body}</section>`;
+        <span class="num">${n}.</span><span class="dot ${esc(r.result ?? '')}"></span><span>${esc(f.title)} <span class="id">${esc(f.id)}</span></span></button>${body}</section>`;
     }
 
     flowsTab() {
@@ -285,7 +302,9 @@
         if (!groups.has(g)) groups.set(g, []);
         groups.get(g).push(f);
       }
-      return [...groups].map(([g, list]) => `${g ? `<h2>${esc(g)}</h2>` : ''}${list.map((f) => this.flow(f)).join('')}`).join('');
+      // Numbered in the order shown, so "flow 6" means the sixth card from the top.
+      let n = 0;
+      return [...groups].map(([g, list]) => `${g ? `<h2>${esc(g)}</h2>` : ''}${list.map((f) => this.flow(f, ++n)).join('')}`).join('');
     }
 
     notesTab() {

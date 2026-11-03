@@ -66,15 +66,25 @@ export function validate(walkthrough, runDir) {
     else if (seen.has(f.id)) problems.push(`${at}: duplicate id`);
     else seen.add(f.id);
     if (!nonEmpty(f?.title)) problems.push(`${at}: "title" must be a non-empty string`);
+    const isExpect = (x) => Array.isArray(x) && x.length > 0 && x.every(nonEmpty);
+    let expects = 0;
     if (!Array.isArray(f?.steps) || f.steps.length === 0) problems.push(`${at}: "steps" must be a non-empty array`);
     else {
       f.steps.forEach((s, j) => {
         if (nonEmpty(s)) return;
-        if (!nonEmpty(s?.do)) problems.push(`${at}: step ${j + 1} must be a string or { "do": "...", "notes": [...] }`);
-        else checkNotes(s.notes, `${at} step ${j + 1}`);
+        if (!nonEmpty(s?.do)) { problems.push(`${at}: step ${j + 1} must be a string or { "do", "expect", "notes" }`); return; }
+        if (s.expect !== undefined) {
+          if (isExpect(s.expect)) expects++;
+          else problems.push(`${at} step ${j + 1}: "expect" must be a non-empty array of strings`);
+        }
+        checkNotes(s.notes, `${at} step ${j + 1}`);
       });
     }
-    if (!Array.isArray(f?.expect) || f.expect.length === 0 || !f.expect.every(nonEmpty)) problems.push(`${at}: "expect" must be a non-empty array of strings`);
+    if (f?.expect !== undefined) {
+      if (isExpect(f.expect)) expects++;
+      else problems.push(`${at}: "expect" must be a non-empty array of strings`);
+    }
+    if (expects === 0) problems.push(`${at}: needs at least one "expect", on a step or on the flow`);
     if (f?.route !== undefined && (typeof f.route !== 'string' || !f.route.startsWith('/'))) problems.push(`${at}: "route" must start with /`);
     checkNotes(f?.notes, at);
     for (const p of f?.evidence ?? []) {
