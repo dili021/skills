@@ -54,9 +54,20 @@ test('a run without records still produces a page', () => {
   const r = makeRepo();
   r.write('a.txt', 'a\n');
   r.commit('base');
+  r.git('checkout', '-q', '-b', 'feature/empty');
   const out = r.node('review.mjs', ['--base', 'main']);
   assert.equal(out.status, 0, out.stderr);
-  const data = load(join(r.dir, '.afk', 'main', 'review-data.js'), 'REVIEW');
+  const data = load(join(r.dir, '.afk', 'feature', 'empty', 'review-data.js'), 'REVIEW');
   assert.equal(data.handoff, null);
   assert.equal(data.verdict, null);
+});
+
+test('on the base branch it refuses and writes nothing', () => {
+  const r = makeRepo();
+  r.write('a.txt', 'a\n');
+  r.commit('base');
+  const out = r.node('review.mjs', ['--base', 'main']);
+  assert.equal(out.status, 2);
+  assert.match(out.stderr, /on the base branch main/);
+  assert.equal(existsSync(join(r.dir, '.afk')), false);
 });

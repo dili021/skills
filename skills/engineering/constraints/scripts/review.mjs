@@ -113,7 +113,13 @@ function listRuns(afk) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (n) => { const i = args.indexOf(n); return i > -1 ? args[i + 1] : undefined; };
-  const data = buildReview({ runClass: opt('--class') ?? null, base: opt('--base') ?? baseFromHandoff() });
+  const base = opt('--base') ?? baseFromHandoff();
+  // A run lives on its own branch; on the base branch the page would describe no run at all.
+  if (base && branchKey() === base) {
+    console.error(`review: on the base branch ${base}; run it from the run's branch or its worktree`);
+    process.exit(2);
+  }
+  const data = buildReview({ runClass: opt('--class') ?? null, base });
   const afk = join(primaryRoot(), '.afk');
   const runDir = join(afk, data.branch);
   mkdirSync(runDir, { recursive: true });
