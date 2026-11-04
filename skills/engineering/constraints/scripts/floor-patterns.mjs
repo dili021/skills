@@ -57,7 +57,7 @@ export const STACKS = {
 export const ANY = {
   suppress: /nosemgrep|gitleaks:allow/,
   stub: /\bTODO\b/,
-  config: /(^|\/)(\.gitlab-ci\.yml|lefthook\.yml|\.pre-commit-config\.yaml|azure-pipelines[^/]*\.ya?ml|floor-guard\.config\.json|(floor-guard|floor-patterns|receipt|gate|stop-check|no-verify)\.mjs)$|(^|\/)\.github\/workflows\/|(^|\/)\.husky\/|(^|\/)\.githooks\/|(^|\/)\.claude\/settings\.json$/,
+  config: /(^|\/)(\.gitlab-ci\.yml|lefthook\.yml|\.pre-commit-config\.yaml|azure-pipelines[^/]*\.ya?ml|floor-guard\.config\.json|(floor-guard|floor-patterns|receipt|gate|stop-check|no-verify)\.mjs)$|(^|\/)scripts\/review\.(mjs|html)$|(^|\/)\.github\/workflows\/|(^|\/)\.husky\/|(^|\/)\.githooks\/|(^|\/)\.claude\/settings\.json$/,
 };
 
 

@@ -32,6 +32,20 @@ export function staleness(receipt, tree, matters) {
   return `changed since it ran: ${shown}`;
 }
 
+// The product files changed between two trees. package.json holds a checker's config (its
+// "scripts") beside product facts (dependencies, engines): a change to "scripts" alone is config.
+function productChange(patterns, fromTree, toTree) {
+  const outsideScripts = (tree, file) => {
+    const json = JSON.parse(execFileSync('git', ['show', `${tree}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+    delete json.scripts;
+    return JSON.stringify(json);
+  };
+  const scriptsOnly = (file) => {
+    try { return outsideScripts(fromTree, file) === outsideScripts(toTree, file); } catch { return false; }
+  };
+  return (f) => patterns.isProduct(f) && !(/(^|\/)package\.json$/.test(f) && scriptsOnly(f));
+}
+
 export function baseFromHandoff() {
   const p = join(primaryRoot(), 'docs', 'agents', 'handoff.md');
   if (!existsSync(p)) return null;
@@ -59,7 +73,7 @@ const VERIFIERS = {
     const reasons = [];
     for (const r of proofs) {
       if (r.exit !== 0) reasons.push(`prove ${r.name} exited ${r.exit}`);
-      const why = staleness(r, tree, patterns.isProduct);
+      const why = staleness(r, tree, productChange(patterns, r.tree, tree));
       if (why) reasons.push(`prove ${r.name}: ${why}`);
     }
     return reasons.length ? fail('receipts-fresh', ...reasons) : ok('receipts-fresh');
@@ -70,7 +84,7 @@ const VERIFIERS = {
     const r = readReceipt('prove', 'all');
     if (!r) return fail('prove-all', 'no receipt for the full proof run; run `node scripts/receipt.mjs run prove all -- verify/cli prove`');
     if (r.exit !== 0) return fail('prove-all', `the full proof run exited ${r.exit}`);
-    const why = staleness(r, tree, patterns.isProduct);
+    const why = staleness(r, tree, productChange(patterns, r.tree, tree));
     return why ? fail('prove-all', why) : ok('prove-all');
   },
 
@@ -78,7 +92,7 @@ const VERIFIERS = {
     const r = readReceipt('verdict', 'verdict');
     if (!r) return fail('verdict-fresh', 'no verdict receipt on this branch');
     if (r.overall === 'FAIL') return fail('verdict-fresh', 'the last verdict is FAIL');
-    const why = staleness(r, tree, patterns.isProduct);
+    const why = staleness(r, tree, productChange(patterns, r.tree, tree));
     return why ? fail('verdict-fresh', why) : ok('verdict-fresh', r.overall);
   },
 

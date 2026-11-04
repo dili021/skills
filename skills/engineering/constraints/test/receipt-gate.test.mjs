@@ -72,6 +72,28 @@ test('verdict-fresh holds through test and doc changes, not product changes', ()
   assert.match(out.stdout, /src\/app\.ts/);
 });
 
+test('verdict-fresh holds through the bar\'s own tooling and the scripts of package.json, not its dependencies', () => {
+  const r = workRepo();
+  r.write('package.json', JSON.stringify({ name: 'app', scripts: { check: 'node check.mjs' }, dependencies: { a: '1.0.0' } }, null, 2));
+  r.commit('package');
+  r.verdict('PASS');
+  r.write('scripts/review.mjs', '// newer review\n');
+  r.write('scripts/review.html', '<!-- newer page -->\n');
+  r.write('package.json', JSON.stringify({ name: 'app', scripts: { check: 'node receipt.mjs run check check -- node check.mjs' }, dependencies: { a: '1.0.0' } }, null, 2));
+  assert.equal(r.gate('verdict-fresh').status, 0, r.gate('verdict-fresh').stdout);
+  r.write('package.json', JSON.stringify({ name: 'app', scripts: { check: 'node check.mjs' }, dependencies: { a: '2.0.0' } }, null, 2));
+  const out = r.gate('verdict-fresh');
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /package\.json/);
+});
+
+test('a product file named like the bar\'s tooling is still product', () => {
+  const r = workRepo();
+  r.verdict('PASS');
+  r.write('src/app/review.html', '<p>a page of the app</p>\n');
+  assert.match(r.gate('verdict-fresh').stdout, /src\/app\/review\.html/);
+});
+
 test('a FAIL verdict fails verdict-fresh, and a bad report is refused', () => {
   const r = workRepo();
   r.verdict('FAIL');
