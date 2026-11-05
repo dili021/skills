@@ -121,7 +121,8 @@
         const res = await fetch(API + 'data', { cache: 'no-store' });
         const body = await res.json();
         this.data = body.walkthrough;
-        const saved = body.results ?? local.get('results:' + location.host, null);
+        this.backupKey = 'results:' + (body.run ?? location.host);
+        const saved = body.results ?? local.get(this.backupKey, null);
         if (saved) this.results = { flows: saved.flows ?? {}, notes: saved.notes ?? {}, finished: !!saved.finished };
       } catch {
         this.status = 'Could not load the checklist from the proxy.';
@@ -169,7 +170,7 @@
 
     save(finished = this.results.finished) {
       this.results.finished = finished;
-      local.set('results:' + location.host, this.results);
+      if (this.backupKey) local.set(this.backupKey, this.results);
       clearTimeout(this.timer);
       this.status = 'Saving…';
       this.renderStatus();

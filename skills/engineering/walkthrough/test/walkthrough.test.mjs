@@ -68,6 +68,7 @@ test('serves the panel script, the checklist and the evidence', async () => {
   const data = await (await get('/__walkthrough/data')).json();
   assert.equal(data.walkthrough.flows.length, 2);
   assert.equal(data.results, null);
+  assert.equal(data.run, run, 'the run keys the browser backup, so two runs on one port never share answers');
   const shot = await get('/__walkthrough/evidence/evidence/shot.png');
   assert.equal(shot.headers.get('content-type'), 'image/png');
   assert.equal(await shot.text(), 'png-bytes');

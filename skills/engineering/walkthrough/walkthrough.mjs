@@ -149,7 +149,8 @@ async function own(req, res, runDir) {
   };
   if (path === 'overlay.js') return send(200, readFileSync(join(HERE, 'overlay.js')), 'text/javascript; charset=utf-8');
   if (path === 'data') {
-    return send(200, { walkthrough: readJson(join(runDir, 'walkthrough.json')), results: readJson(join(runDir, 'walkthrough-results.json')) });
+    // `run` keys the panel's browser backup, so one proxy port serving two runs never mixes their results.
+    return send(200, { run: runDir, walkthrough: readJson(join(runDir, 'walkthrough.json')), results: readJson(join(runDir, 'walkthrough-results.json')) });
   }
   if (path === 'results' && req.method === 'POST') {
     let body;
