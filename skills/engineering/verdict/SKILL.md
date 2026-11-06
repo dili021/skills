@@ -15,7 +15,7 @@ A **verdict** is PASS, PASS+NOTES or FAIL on a change, given by an agent that di
 
 3. **Run the floor guard** when the repo has one: `node scripts/floor-guard.mjs --base <base>`. Exit code 1 findings go into the verdict. Exit code 2 is reported as "guard could not run".
 
-4. **Dispatch the verifier.** A fresh subagent, on a different model from the one that wrote the code when the harness offers one. Brief it with [`VERIFIER-BRIEF.md`](VERIFIER-BRIEF.md). It receives the contract, the two refs and the way to run the app. The implementer's report, the diff summary and this conversation stay behind, because a verifier handed the conclusion checks the conclusion.
+4. **Dispatch the verifier.** A fresh subagent on Opus 5.5 at effort xhigh: in Claude Code, the Agent tool with `model: "opus"` and `effort: "xhigh"`; through T3 `delegate_task`, model `claude-opus-5-5` with `options: { "effort": "xhigh" }`. Brief it with [`VERIFIER-BRIEF.md`](VERIFIER-BRIEF.md). It receives the contract, the two refs and the way to run the app. The implementer's report, the diff summary and this conversation stay behind, because a verifier handed the conclusion checks the conclusion.
 
 5. **Reconcile.** The verifier's report is data. Re-read each FAIL and each note against the criterion's text, then sort it:
    - **Contract unclear**: the criterion was ambiguous. Fix the criterion, run the verifier again.

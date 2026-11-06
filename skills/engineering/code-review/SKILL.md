@@ -57,6 +57,8 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
+Run both on Opus 5.5 at effort xhigh: in Claude Code, the Agent tool with `model: "opus"` and `effort: "xhigh"`; through T3 `delegate_task`, model `claude-opus-5-5` with `options: { "effort": "xhigh" }`.
+
 **Standards sub-agent prompt** should include:
 
 - The full diff command and commit list.
