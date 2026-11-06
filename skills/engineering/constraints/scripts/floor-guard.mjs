@@ -82,24 +82,27 @@ for (const { file, text } of added) {
   if (isConstraints(file) && /^\| *(W|E)\d+ *\|/.test(text)) flag('new-exception', file, text);
 }
 
-// 2b. A test file deleted, or an assertion removed from a test file that still exists. An assertion
-// whose line changes only in its literal values (strings, numbers, true or false) is the same check
-// with a new expected value: it pairs with an added line of the same shape in the same file and is
-// reported as updated. A changed matcher, subject or `.not` gives a different shape, and an
-// assertion with no partner is a removal, so a file that ends with fewer assertions still fails.
+// 2b. A test file deleted fails. An assertion removed from a test file that still exists is listed
+// for a person and does not fail: a diff cannot tell a weakened test from a behaviour that changed
+// on purpose, and failing on both taught agents to reshape tests until the guard passed, which hides
+// the change a reviewer needs to see. The handoff's Attention section carries the list.
+// An assertion whose line changes only in its literal values (strings, numbers, true or false) is
+// the same check with a new expected value: it pairs with an added line of the same shape in the
+// same file and is listed as updated. A changed matcher, subject or `.not` gives a different shape,
+// and an assertion with no partner is listed as removed.
 const LITERAL = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`|\b\d+(?:\.\d+)?\b|\b(?:true|false)\b/g;
 const shape = (text) => text.replace(LITERAL, '§').replace(/\s+/g, '').replace(/[;,]$/, '');
 const addedShapes = new Map();
 for (const { file, text } of added) {
   if (isTest(file) && ASSERTS.test(text)) addedShapes.set(file, [...(addedShapes.get(file) ?? []), shape(text)]);
 }
-const updated = [];
+const updated = [], removedAsserts = [];
 for (const f of deleted) if (isTest(f)) flag('test-deleted', f, 'file deleted');
 for (const { file, text } of removed) {
   if (isTest(file) && !deleted.includes(file) && ASSERTS.test(text)) {
     const pool = addedShapes.get(file) ?? [];
     const partner = pool.indexOf(shape(text));
-    if (partner === -1) flag('assertion-removed', file, text);
+    if (partner === -1) removedAsserts.push({ file, text: text.trim().slice(0, 120) });
     else { pool.splice(partner, 1); updated.push({ file, text: text.trim().slice(0, 120) }); }
   }
 }
@@ -182,6 +185,11 @@ if (process.argv.includes('--warn-config')) {
 if (updated.length) {
   console.log(`floor-guard: ${updated.length} assertion(s) updated (same check, new expected value):`);
   for (const u of updated) console.log(`  ${u.file}: ${u.text}`);
+}
+// Removed assertions are listed on every run and never fail it; a person reads each one.
+if (removedAsserts.length) {
+  console.log(`floor-guard: ${removedAsserts.length} assertion(s) removed (list each in the handoff's Attention section):`);
+  for (const r of removedAsserts) console.log(`  [assertion-removed] ${r.file}: ${r.text}`);
 }
 if (findings.length === 0) { console.log('floor-guard: clean'); process.exit(0); }
 console.error('floor-guard: ' + findings.length + ' floor violation(s):');

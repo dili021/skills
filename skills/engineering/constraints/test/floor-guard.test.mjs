@@ -26,11 +26,22 @@ test('suppression comment fails', () => {
   assert.match(out.stderr, /silenced-checker/);
 });
 
-test('assertion removed from a test fails', () => {
+// A removed assertion is listed for a person and does not fail: a diff can't tell a weakened test
+// from a behaviour that changed on purpose.
+test('assertion removed from a test passes and is listed', () => {
   const r = branchWith({ 'src/app.test.ts': '// nothing\n' }, { stacks: ['ts'] });
   const out = r.node('floor-guard.mjs', ['--base', 'main']);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /1 assertion\(s\) removed/);
+  assert.match(out.stdout, /\[assertion-removed\] src\/app\.test\.ts: expect\(a\)\.toBe\(1\);/);
+});
+
+test('a deleted test file still fails', () => {
+  const r = branchWith({}, { stacks: ['ts'] });
+  r.git('rm', '-q', 'src/app.test.ts');
+  const out = r.node('floor-guard.mjs', ['--base', 'main']);
   assert.equal(out.status, 1);
-  assert.match(out.stderr, /assertion-removed/);
+  assert.match(out.stderr, /\[test-deleted\] src\/app\.test\.ts/);
 });
 
 test('extra test pattern covers a proof case directory', () => {
@@ -40,8 +51,8 @@ test('extra test pattern covers a proof case directory', () => {
   r.git('checkout', '-q', '-b', 'work');
   r.write('verify/prove/status-after-reload.mjs', '// gone\n');
   const out = r.node('floor-guard.mjs', ['--base', 'main']);
-  assert.equal(out.status, 1);
-  assert.match(out.stderr, /assertion-removed/);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /\[assertion-removed\] verify\/prove\/status-after-reload\.mjs/);
 });
 
 test('bad config exits 2', () => {
@@ -79,34 +90,36 @@ test('an assertion flipped from true to false passes as updated', () => {
   assert.equal(out.status, 0, out.stderr);
 });
 
-test('a looser matcher still fails', () => {
-  const out = guard({ 'src/app.test.ts': 'expect(a).toBeTruthy();\n' });
-  assert.equal(out.status, 1);
-  assert.match(out.stderr, /assertion-removed/);
+// A changed matcher, `.not` or subject is a different check: listed as removed, never as updated.
+const listedAsRemoved = (out) => {
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /1 assertion\(s\) removed/);
+  assert.doesNotMatch(out.stdout, /updated/);
+};
+
+test('a looser matcher is listed as removed', () => {
+  listedAsRemoved(guard({ 'src/app.test.ts': 'expect(a).toBeTruthy();\n' }));
 });
 
-test('an added .not still fails', () => {
-  const out = guard({ 'src/app.test.ts': 'expect(a).not.toBe(1);\n' });
-  assert.equal(out.status, 1);
-  assert.match(out.stderr, /assertion-removed/);
+test('an added .not is listed as removed', () => {
+  listedAsRemoved(guard({ 'src/app.test.ts': 'expect(a).not.toBe(1);\n' }));
 });
 
-test('a changed subject still fails', () => {
-  const out = guard({ 'src/app.test.ts': 'expect(b).toBe(1);\n' });
-  assert.equal(out.status, 1);
-  assert.match(out.stderr, /assertion-removed/);
+test('a changed subject is listed as removed', () => {
+  listedAsRemoved(guard({ 'src/app.test.ts': 'expect(b).toBe(1);\n' }));
 });
 
-test('one updated and one removed assertion: only the removed one fails', () => {
+test('one updated and one removed assertion: each is listed under its own heading', () => {
   const r = makeRepo({ config: { stacks: ['ts'] } });
   r.write('src/two.test.ts', 'expect(a).toBe(1);\nexpect(b).toBe(2);\n');
   r.commit('base');
   r.git('checkout', '-q', '-b', 'work');
   r.write('src/two.test.ts', 'expect(a).toBe(3);\n');
   const out = r.node('floor-guard.mjs', ['--base', 'main']);
-  assert.equal(out.status, 1);
-  assert.match(out.stderr, /1 floor violation/);
-  assert.match(out.stderr, /assertion-removed\] src\/two\.test\.ts: expect\(b\)/);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /1 assertion\(s\) updated/);
+  assert.match(out.stdout, /1 assertion\(s\) removed/);
+  assert.match(out.stdout, /assertion-removed\] src\/two\.test\.ts: expect\(b\)/);
 });
 
 test('an updated assertion pairs only within its own file', () => {
@@ -118,6 +131,7 @@ test('an updated assertion pairs only within its own file', () => {
   r.write('src/one.test.ts', '// gone\n');
   r.write('src/other.test.ts', 'expect(a).toBe(2);\n');
   const out = r.node('floor-guard.mjs', ['--base', 'main']);
-  assert.equal(out.status, 1);
-  assert.match(out.stderr, /assertion-removed\] src\/one\.test\.ts/);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /assertion-removed\] src\/one\.test\.ts/);
+  assert.doesNotMatch(out.stdout, /updated/);
 });

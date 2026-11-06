@@ -46,7 +46,7 @@ Take a task from its brief to **merge-ready** without the user: built, proven, r
 
 12. **Read the proof.** The route has already run `code-review` and `verdict`. A verdict that still fails after its three rounds makes this run **flawed**.
 
-13. **Write the handoff.** Call the Skill tool with `pr` for the body, and put an **Attention** section first: every `assumed` criterion and decision, every INCONCLUSIVE criterion, every FAIL the verdict sorted as Contract unclear, Accepted trade-off or Noise with its reason, every stop-list item still waiting.
+13. **Write the handoff.** Call the Skill tool with `pr` for the body, and put an **Attention** section first: every `assumed` criterion and decision, every INCONCLUSIVE criterion, every FAIL the verdict sorted as Contract unclear, Accepted trade-off or Noise with its reason, every stop-list item still waiting, every assertion the floor guard lists as removed with the reason it went.
     - **Pull request**: open it ready for review on PASS or PASS+NOTES. Otherwise open it as a draft that names what is missing.
     - **Local branch**: write the body to `.afk/<branch>/HANDOFF.md` with only what the records cannot say: Attention, Summary, Merge Danger, and what you tried and discarded. Put the before and after evidence files in `.afk/<branch>/evidence/` and name them in one line. The criteria, the gate output and every evidence file reach the review page from the receipts. Push the work branch only when `docs/agents/handoff.md` says so, and never the base branch.
 
