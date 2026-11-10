@@ -15,7 +15,7 @@ A standup report: the day's results as a short bullet list, ready to paste into 
 
 2. **Read the sessions.** Run `node <this skill's folder>/sessions.mjs <YYYY-MM-DD>`. It prints every Claude Code session active that day: its folder and the user's prompts with local times. Done when you have the list of folders and every task the prompts started.
 
-3. **Read git.** In each folder from step 2 that is a git repo, run `git fetch -q`, then:
+3. **Read git.** In each folder from step 2 that is a git repo, run `git fetch -q`, then the commands below. Give both bounds with a time, `"<day> 00:00"`: a bare date means that date at the current time, so the next day's morning leaks in.
    - merged PRs: `git log origin/<main branch> --first-parent --since=<day> --until=<next day> --format="%s"`
    - the rest of the user's commits: `git log --all --author="$(git config user.name)" --since=<day> --until=<next day> --format="%h %D %s"`. The author filter drops checkpoint commits that tools write under their own name.
 
