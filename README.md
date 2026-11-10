@@ -45,7 +45,7 @@ These are symlinks, so a `git pull` updates them in place. `--prune` clears
   plugin.json        the plugin. Its "skills" array is generated, never hand-edited
 skills/              mine. The only skills the plugin loads
   engineering/       the flow: setup, contract, run, proof, handoff, lessons
-  productivity/      interviews, handoff, teaching, writing for agents
+  productivity/      interviews, handoff, standup, teaching, writing for agents
   writing/           unslop
   personal/          whiteboard-defense
 sources/             upstream text, untouched, never loaded
@@ -131,5 +131,5 @@ from Jason Ku's, MIT © Jason Ku, see `LICENSE.jasonku09`; it needs Node 20+ at 
 `constraints` follows Addy Osmani's `constraint-driven-development` and carries his floor
 guard script with one added rule, MIT © Addy Osmani, see `LICENSE.addyosmani`. `pr` credits
 Dex Horthy's `show-me` in its own `CREDITS.md`. My changes and my own skills (`afk`,
-`verdict`, `lanes`, `ask-dili`, `flow-map`, `walkthrough`, `whiteboard-defense`) are MIT © Stefan Dili. `find-skills`
+`verdict`, `lanes`, `ask-dili`, `flow-map`, `walkthrough`, `whiteboard-defense`, `standup`) are MIT © Stefan Dili. `find-skills`
 (vercel-labs) is not carried here, it stays installed through the `skills` CLI.

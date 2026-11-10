@@ -87,6 +87,7 @@ Read [PHASE-BOUNDARIES.md](PHASE-BOUNDARIES.md) at the gap between two phases: c
 - **`/wizard`**: an interactive script for steps only a human can take, like credentials and dashboards.
 - **`/resolving-merge-conflicts`**: works a conflict hunk by hunk, by intent.
 - **`/whiteboard-defense`**: a lesson on a shipped system so you can defend it at a whiteboard.
+- **`/standup`**: what got done on a past workday, as a short Serbian bullet list.
 - **`/teach`**: learn a concept over several sessions.
 - **`/wait-what`**: re-pitch the last message in plain language, with `GLOSSARY.md` vocabulary.
 - **`/writing-for-agents`**: the reference for skills, `CLAUDE.md` and other documents agents read.
