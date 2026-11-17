@@ -23,19 +23,26 @@ A standup report: the reported day's results and today's plan as short bullet li
 
 4. **Confirm work outside git.** A prompt task with no commit (server access, a deploy, closed tickets) counts only once it finished. When the prompt shows only the request, grep that session's transcript (`~/.claude/projects/*/<session id>*.jsonl`) for the outcome. Done when each such task is confirmed or dropped.
 
-5. **Read today's plan.** For each repo, collect: branches still in progress, the next tickets in the repo's plan notes (such as `.afk/*/NEXT.md` or a wave file), a deploy waiting for merged work, and the open remainder of a ticket that was only partly done. Done when each of these is a "Danas" item or known not to apply.
+5. **Read today's plan.** For each repo, collect: branches still in progress, the next tickets in the repo's plan notes (such as `.afk/*/NEXT.md` or a wave file), a deploy waiting for merged work, and the open remainder of a ticket that was only partly done. For a deploy, read what the environment runs now (such as its `version.json`) and list every merged PR after that commit. Done when each of these is a "Danas" item or known not to apply.
 
 6. **Find the ticket links.** In each repo, `docs/agents/issue-tracker.md` names the tracker and how to look a ticket up; get each ticket id's web URL that way. A repo without that file keeps its ids as plain text. Done when each id has a URL or is known to have none.
 
-7. **Write the report** by the format below and hand it over in chat. Done when every merged PR, every branch with commits, every confirmed outside task and every planned item from step 5 is an item.
+7. **Write the report** by the format below and hand it over in chat, in the final message. Done when every merged PR, every branch with commits, every confirmed outside task and every planned item from step 5 is an item.
 
 ## Format
 
-- Serbian, two parts. Each starts with a plain line, „Juče“ for the reported day (its weekday name, such as „Petak“, when that day was not yesterday) and „Danas“ for the plan, followed by its bullets. No intro, no closing line.
-- Impersonal forms, never first person: „Spojeno“, „Započet“, „Dodat“, „Povučene“, „Nastavlja se“. The participle agrees with the work it names: „Započet raspored…“, „Započeti deljeni linkovi…“.
+- Serbian, no intro, no closing line. Two parts, each a plain line followed by fixed sections. Each section is a bullet with its items nested under it:
+  - „Juče“ (the weekday name, such as „Petak“, when the reported day was not yesterday):
+    - „Rađeno:“ work of that day that is not merged: branches with commits but no merge, confirmed outside tasks, housekeeping.
+    - „Spojeno:“ PRs merged that day. Work both done and merged that day goes here only, not under „Rađeno“.
+  - „Danas“:
+    - „Nastavlja se:“ the unmerged work from „Rađeno“ that is still open.
+    - „U planu:“ the rest of step 5: next tickets, a deploy waiting for merged work, the remainder of a partly done ticket.
+- Leave out a section with no items.
+- Impersonal forms, never first person: „Započet“, „Dodat“, „Povučene“, „Podignut“. The participle agrees with the work it names: „Započet raspored…“, „Započeti deljeni linkovi…“.
 - One short line per item: first the work, in words a user or teammate understands, then its tickets in parentheses as Markdown links, `[F-06](<url>)`. Parentheses hold only ticket ids, never a description; the line's text never names a ticket. A line with no ticket has no parentheses. An id with no URL stays plain text. Leave out PR numbers, branch names, commit hashes, file names and code.
-- Merged PRs form one item, „Spojeno N PR-ova:“, with one nested line per PR. A PR that changes only tooling reads „izmena alata za …“.
-- A branch with commits but no merge: „Započet <work> (<ticket>)“ when its first commit fell on that day, otherwise „Nastavljen <work> (<ticket>)“.
+- Under „Spojeno“, one line per PR. A PR that changes only tooling reads „izmena alata za …“.
+- Under „Rađeno“, a branch reads „Započet <work> (<ticket>)“ when its first commit fell on that day, otherwise „Nastavljen <work> (<ticket>)“.
 - Housekeeping commits of one kind (a contract pull, dependency bumps) together make one item, such as „Povučene nove izmene API draft-a“.
 - Each confirmed outside task is one item.
 - Questions, explanations and discussion that changed nothing are not items.
@@ -44,19 +51,23 @@ A standup report: the reported day's results and today's plan as short bullet li
 
 ```
 Juče
-- Spojeno 5 PR-ova:
+- Rađeno:
+  - Započet raspored u uskim i niskim prozorima, brži testovi ([F-47](<url>))
+  - Započeti deljeni linkovi kao tab na strani Exports ([F-37](<url>))
+  - Staging podignut na main sa /blob/ prosleđivanjem ([F-46](<url>))
+- Spojeno:
   - napredak, lista i preuzimanje exporta ([F-36](<url>))
   - javna stranica deljenog linka ([F-38](<url>))
   - na stagingu /blob/ prosleđuje na Azurite, pa fajlovi mogu da se preuzmu ([F-46](<url>))
   - naziv exporta i vreme sledećeg retake pokušaja, ugovor usklađen sa backendom ([F-36.3](<url>), [F-31.5](<url>))
   - frontend bugovi iz prvog QA sa staginga, uz logo i favicon ([#4124](<url>))
-- Staging podignut na main sa /blob/ prosleđivanjem ([F-46](<url>))
-- Započet raspored u uskim i niskim prozorima, brži testovi ([F-47](<url>))
-- Započeti deljeni linkovi kao tab na strani Exports ([F-37](<url>))
 
 Danas
-- Nastavlja se raspored u uskim i niskim prozorima, testovi koji nasumično padaju ([F-47](<url>))
-- Posle toga notifikacije ([F-39](<url>))
-- Na staging ide javna stranica deljenog linka, naziv exporta sa vremenom retake-a i ispravke iz QA ([F-38](<url>), [F-36.3](<url>), [F-31.5](<url>), [#4124](<url>))
-- Ostatak frontend bugova iz QA ([#4124](<url>))
+- Nastavlja se:
+  - raspored u uskim i niskim prozorima, testovi koji nasumično padaju ([F-47](<url>))
+  - deljeni linkovi kao tab na strani Exports ([F-37](<url>))
+- U planu:
+  - notifikacije ([F-39](<url>))
+  - na staging idu exporti, javna stranica deljenog linka, naziv exporta sa vremenom retake-a i ispravke iz QA ([F-36](<url>), [F-38](<url>), [F-36.3](<url>), [F-31.5](<url>), [#4124](<url>))
+  - ostatak frontend bugova iz QA ([#4124](<url>))
 ```
