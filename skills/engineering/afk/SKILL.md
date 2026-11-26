@@ -46,20 +46,31 @@ Take a task from its brief to **merge-ready** without the user: built, proven, r
 
 12. **Read the proof.** The route has already run `code-review` and `verdict`. A verdict that still fails after its three rounds makes this run **flawed**.
 
-13. **Write the handoff.** Call the Skill tool with `pr` for the body, and put an **Attention** section first: every `assumed` criterion and decision, every INCONCLUSIVE criterion, every FAIL the verdict sorted as Contract unclear, Accepted trade-off or Noise with its reason, every stop-list item still waiting, every assertion the floor guard lists as removed with the reason it went.
-    - **Pull request**: open it ready for review on PASS or PASS+NOTES. Otherwise open it as a draft that names what is missing.
-    - **Local branch**: write the body to `.afk/<branch>/HANDOFF.md` with only what the records cannot say: Attention, Summary, Merge Danger, and what you tried and discarded. Put the before and after evidence files in `.afk/<branch>/evidence/` and name them in one line. The criteria, the gate output and every evidence file reach the review page from the receipts. Push the work branch only when `docs/agents/handoff.md` says so, and never the base branch.
+13. **Write the handoff.** Call the Skill tool with `pr` for the body, and put an **Attention** section first, in two parts:
+    - **For you**: everything that waits on the person. Every `assumed` criterion and decision, every INCONCLUSIVE criterion, every FAIL the verdict sorted as Contract unclear, Accepted trade-off or Noise with its reason, every stop-list item still waiting, and each trail-review flag that changes their decision. One item is one decision or action, with your recommendation.
+    - **For the record**: what needs no action. Every assertion the floor guard lists as removed with the reason it went, warnings, and the rest of the trail review.
+
+    Every run also writes `.afk/<branch>/HANDOFF.md`, which the review page shows: the Attention section, Summary, Merge Danger, **Lessons** (step 15) and what you tried and discarded. Lessons and what you tried stay in this note, out of the PR body and its threads.
+    - **Pull request**: open it ready for review on PASS or PASS+NOTES. Otherwise open it as a draft that names what is missing. Every Attention item becomes its own thread, in the form `docs/agents/handoff.md` gives. A "For you" thread opens with the decision or action it waits for, marked, on its first line, with your recommendation; the context follows. It stays active until the person resolves it. A "For the record" thread goes up closed, so it informs without holding the merge. A thread about something a person sees or does in the app carries a marked screenshot of it, or a recording when the point is a sequence of steps.
+    - **Local branch**: the note is the body, with only what the records cannot say. Put the before and after evidence files in `.afk/<branch>/evidence/` and name them in one line. The criteria, the gate output and every evidence file reach the review page from the receipts. Push the work branch only when `docs/agents/handoff.md` says so, and never the base branch.
 
 14. **Bring it to green on the current base.**
-    - **Pull request**: watch the checks with the git host's CLI (`gh`, `glab` or `az`). Batch every known fix into one push. Fix real review-bot findings and dismiss noise with the reason stated on the thread.
+    - **Pull request**: watch the checks with the git host's CLI (`gh`, `glab` or `az`). Every push to an open pull request queues a full CI build, so push only when `check` is green on that tree and the verdict is fresh (`node scripts/gate.mjs verdict-fresh` passes); a fix that changed product code gets its verdict round before the push, not after. Batch every known fix into one push. A flawed run pushes once, at the end, to its draft. Fix real review-bot findings and dismiss noise with the reason stated on the thread.
     - **Local branch**: merge the base branch's tip into the work branch, then run `check` there, which writes its receipt, the full test suite, and the full proof run `node scripts/receipt.mjs run prove all -- verify/cli prove` when the repo has a verify CLI. These are the last gate. When the branch was pushed and the git host ran checks on it, read those too. Leave the base branch as it is.
 
     Product code committed after the verdict needs a new verdict, and so does a base merge that brought product code: run `/verdict` again when `node scripts/gate.mjs verdict-fresh` fails.
 
-15. **Propose lessons.** List this run's candidates for `docs/agents/lessons.md` as ready-to-add rows: each verdict round that failed for a real reason, each floor guard finding, each time you assumed or asked what the code already answered. Add them when the user says so. When the user later overturns an `assumed` criterion, that is a row too.
+15. **Propose lessons.** Write this run's candidates for `docs/agents/lessons.md` as ready-to-add rows in the **Lessons** section of `HANDOFF.md`: each verdict round that failed for a real reason, each floor guard finding, each time you assumed or asked what the code already answered. Add them to `lessons.md` when the user says so. When the user later overturns an `assumed` criterion, that is a row too.
 
-16. **Reply with the run's class first**. On a local branch, first run `node scripts/review.mjs --class "<class>"` in the run's worktree, where the work branch is checked out, and put the page path it prints right after the class. Unless the run is blocked, call the Skill tool with `walkthrough` next, and put the URL it serves right after the page path: the person's own pass over the flows, with the decisions they may overturn. Then the PR link, or the branch name with the path to its handoff note and the merge command from `docs/agents/handoff.md`, the predicate's state line by line, the Attention list, the proposed lessons, and what you tried and discarded:
-    - **merge-ready**: verdict passed, checks green on the current base, nothing waiting. On a local branch this class needs `node scripts/gate.mjs merge-ready`, run in the run's worktree, to exit 0; quote its output. Without the gate, say the class is your own judgement.
+16. **Reply short; the review page carries the rest.** Run `node scripts/review.mjs --class "<class>"` in the run's worktree, where the work branch is checked out, for the page path. Unless the run is blocked, call the Skill tool with `walkthrough` for its URL: the person's own pass over the flows, with the decisions they may overturn. The reply, in the person's language, has these parts and nothing else:
+    1. The run's class and why, in one sentence.
+    2. **For you**: the Attention's "For you" items, numbered, every one of them. Each says what to decide or do, links its thread, and gives your recommendation. With none, say the person can merge.
+    3. One status line: criteria passed of total, `check`, the verdict, CI. A criterion that did not pass gets its own line below it.
+    4. Links: the PR, or the branch with the merge command from `docs/agents/handoff.md`; the review page; the walkthrough.
+    5. One line with the number of lesson candidates on the review page.
+
+    The classes:
+    - **merge-ready**: verdict passed, checks green on the current base, nothing waiting. On a local branch this class needs `node scripts/gate.mjs merge-ready`, run in the run's worktree, to exit 0; the status line says it did. Without the gate, say the class is your own judgement.
     - **needs you**: a stop-list item or a product call is waiting.
     - **flawed**: the verdict still fails after three rounds.
     - **blocked**: access, credentials or environment are missing, or the problem did not reproduce.
