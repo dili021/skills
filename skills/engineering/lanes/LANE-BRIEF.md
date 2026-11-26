@@ -25,6 +25,7 @@ You own **lane <N>**. Work only inside `<worktree path>`, on branch `lane/<N>-<s
 - Commit to your own branch as you finish each ticket.
 - Stay on your branch. Do not merge, rebase, pull, or switch branches, and do not touch the base branch or any other lane's worktree.
 - Start a dev server only on the port assigned above.
+- Never open a terminal or console window in the foreground: run commands only through your shell tool, long ones in its background mode; no `start`, `cmd /c start`, `wt`, or `Start-Process` without `-WindowStyle Hidden`; every `spawn`/`exec` in a script passes `windowsHide: true`; browsers run headless. Put this rule, word for word, in the brief of every subagent you start.
 
 **Stop and report early when:** a ticket needs a file another lane owns, a blocker you were told was done turns out to be missing, the setup in your worktree is broken, or an acceptance criterion contradicts the code you find.
 
